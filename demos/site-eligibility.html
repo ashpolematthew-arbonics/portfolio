@@ -19,7 +19,7 @@
   <header class="demo-head"><div class="container">
     <div class="crumb"><a href="../index.html">Home</a> / Demos / Drone site eligibility</div>
     <h1>🛰️ Drone site eligibility assessment</h1>
-    <p>Not every hectare can host a carbon project. Land must clear a stack of eligibility rules before it qualifies for afforestation/reforestation crediting. Toggle each rule below and the map re-screens a synthetic landscape of land parcels in real time — green parcels pass, red fail, and the eligible-area tally updates instantly.</p>
+    <p>Not every hectare can host a carbon project. Within a single project boundary, eligibility is decided <strong>pixel by pixel</strong> against a stack of rules, then the passing pixels are dissolved into a clean vector eligibility layer. Toggle each rule and watch the raster re-classify in real time; switch to the vectorised view to see the eligible area as polygons — the form it takes when it enters a project's GIS.</p>
   </div></header>
 
   <div class="demo-body"><div class="container">
@@ -35,6 +35,14 @@
 
         <h3 style="margin-top:24px">Display</h3>
         <div class="ctl">
+          <label>Layer</label>
+          <div class="seg" id="view">
+            <button data-val="raster" class="active">Raster pixels</button>
+            <button data-val="vector">Vectorised</button>
+          </div>
+        </div>
+        <div class="ctl">
+          <label>Basemap</label>
           <div class="seg" id="basemap">
             <button data-val="sat" class="active">Satellite</button>
             <button data-val="osm">Map</button>
@@ -45,26 +53,26 @@
           <span><i style="background:#4ade80"></i> Eligible</span>
           <span><i style="background:#f87171"></i> Excluded</span>
         </div>
-        <p class="note">Click any parcel to see exactly which rule(s) it failed. Landscape is procedurally generated &amp; seeded — synthetic, not a real site.</p>
+        <p class="note">Click a pixel to see which rule(s) it failed. The landscape's slope, peat, land-use and forest-history layers are procedurally generated &amp; seeded — synthetic, not a real site.</p>
       </aside>
 
       <main>
         <div class="stat-row">
           <div class="stat"><div class="k">Eligible area</div><div class="v" id="sElig">—</div><div class="muted" style="font-size:11px">hectares</div></div>
-          <div class="stat"><div class="k">Eligible parcels</div><div class="v small" id="sCount">—</div><div class="muted" style="font-size:11px">of <span id="sTotalP">0</span></div></div>
+          <div class="stat"><div class="k">Eligible pixels</div><div class="v small" id="sCount">—</div><div class="muted" style="font-size:11px">of <span id="sTotalP">0</span></div></div>
           <div class="stat"><div class="k">Pass rate</div><div class="v small" id="sRate">—</div><div class="muted" style="font-size:11px">by area</div></div>
           <div class="stat"><div class="k">Est. credits</div><div class="v small" id="sCred">—</div><div class="muted" style="font-size:11px">tCO₂e / yr @ 8 t/ha</div></div>
         </div>
         <div class="viz"><div id="map"></div>
-          <div id="reason" class="note" style="min-height:18px">Hover or click a parcel for details.</div>
+          <div id="reason" class="note" style="min-height:18px">Click a pixel for details.</div>
         </div>
 
         <div class="method"><details>
           <summary>How this works — the method behind the demo</summary>
           <div class="body">
-            <p>Each parcel carries attributes a real screening pipeline derives from geospatial layers: <strong>land-cover time series</strong> (Sentinel-2 / Dynamic World for the 10-year forest test), a <strong>DEM-derived slope</strong> raster, <strong>peat &amp; wetland</strong> maps, <strong>protected-area</strong> boundaries (WDPA), and prior-use classification.</p>
-            <p>A parcel is <strong>eligible</strong> only if it passes <em>every</em> enabled rule — a logical AND across criteria. Disabling a rule relaxes the screen, which is why the eligible area grows as you uncheck boxes. The eligible-area sum drives a first-order credit estimate at a nominal 8 tCO₂e/ha/yr.</p>
-            <p>In production this same logic runs over thousands of parcels from cadastral data, with drone orthomosaics used to ground-truth borderline cases.</p>
+            <p>Eligibility screening is a <strong>raster overlay</strong>. Inside the project boundary, every pixel is sampled from co-registered geospatial layers: a <strong>land-cover time series</strong> (Sentinel-2 / Dynamic World for the 10-year forest test), a <strong>DEM-derived slope</strong> raster, <strong>peat &amp; wetland</strong> maps, <strong>protected-area</strong> boundaries (WDPA), and a prior land-use classification — all modelled here as spatially-coherent synthetic fields.</p>
+            <p>A pixel is <strong>eligible</strong> only if it passes <em>every</em> enabled rule — a logical AND across the criteria rasters. Disabling a rule relaxes the screen, so the eligible area grows. Eligible area × a nominal 8 tCO₂e/ha/yr gives a first-order credit estimate.</p>
+            <p>The <strong>vectorised</strong> view dissolves contiguous eligible pixels and traces their boundary edges — the raster-to-vector step that turns a classification grid into the polygon eligibility layer a project actually files. In production this runs at 10 m Sentinel resolution (or finer from drone orthomosaics) across the whole boundary.</p>
           </div>
         </details></div>
       </main>

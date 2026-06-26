@@ -36,6 +36,11 @@
           <label>Target allowable error <span class="val" id="errV">10 %</span></label>
           <input type="range" id="err" min="5" max="25" step="1" value="10" />
         </div>
+        <div class="ctl">
+          <label>Plot size <span class="val" id="psV">0.04 ha</span></label>
+          <input type="range" id="ps" min="1" max="10" step="1" value="4" />
+          <span class="muted" style="font-size:11px">Larger plots reduce within-plot CV (≈ ∝ 1/√area) but cost more to measure.</span>
+        </div>
 
         <h3 style="margin-top:22px">Strata</h3>
         <div id="strata"></div>
@@ -46,6 +51,7 @@
         <div class="stat-row">
           <div class="stat"><div class="k">Plots needed</div><div class="v" id="sN">—</div><div class="muted" style="font-size:11px">stratified (Neyman)</div></div>
           <div class="stat"><div class="k">Vs simple random</div><div class="v small" id="sSRS">—</div><div class="muted" style="font-size:11px">plots saved</div></div>
+          <div class="stat"><div class="k">Area sampled</div><div class="v small" id="sSamp">—</div><div class="muted" style="font-size:11px">n × plot size</div></div>
           <div class="stat"><div class="k">Achieved uncertainty</div><div class="v small" id="sUnc">—</div><div class="muted" style="font-size:11px">90% CI half-width</div></div>
           <div class="stat"><div class="k">Uncertainty deduction</div><div class="v small" id="sDed">—</div><div class="muted" style="font-size:11px">VCS rule</div></div>
         </div>
@@ -66,12 +72,54 @@
     </div>
   </div></div>
 
+  <!-- ===== Sub-demo: unsupervised stratification from satellite imagery ===== -->
+  <div class="section" style="border-top:1px solid var(--border)"><div class="container">
+    <h2>Sub-demo · Unsupervised stratification from satellite imagery</h2>
+    <p class="sub">The strata above don't have to be drawn by hand. Clustering the spectral signature of every pixel groups the landscape into homogeneous classes automatically — driving down within-stratum variance and, with it, the number of field plots you need. Each point below is a synthetic Sentinel-2 pixel in a 2-band feature space; cluster it and watch the variance collapse.</p>
+    <div class="layout">
+      <aside class="panel controls">
+        <h3>Clustering</h3>
+        <div class="ctl">
+          <label>Number of strata (k) <span class="val" id="kV">4</span></label>
+          <input type="range" id="k" min="1" max="8" step="1" value="4" />
+        </div>
+        <div class="ctl">
+          <button class="btn btn-primary" id="autok" style="width:100%">Auto-select k (X-Means / BIC)</button>
+        </div>
+        <div class="ctl">
+          <label class="checkrow"><input type="checkbox" id="showCent" checked /> Show cluster centroids</label>
+        </div>
+        <p class="note">k-means (Lloyd's algorithm) on standardised bands. X-Means picks k by minimising BIC across k = 1…8.</p>
+      </aside>
+      <main>
+        <div class="stat-row">
+          <div class="stat"><div class="k">Variance explained</div><div class="v" id="cR2">—</div><div class="muted" style="font-size:11px">of biomass, by strata</div></div>
+          <div class="stat"><div class="k">Global CV</div><div class="v small" id="cGlobal">—</div><div class="muted" style="font-size:11px">unstratified</div></div>
+          <div class="stat"><div class="k">Pooled within-strata CV</div><div class="v small" id="cWithin">—</div><div class="muted" style="font-size:11px">after clustering</div></div>
+          <div class="stat"><div class="k">Plots vs unstratified</div><div class="v small" id="cPlots">—</div><div class="muted" style="font-size:11px">∝ CV²</div></div>
+        </div>
+        <div class="viz"><div id="scatter" class="plot" style="height:420px"></div></div>
+        <div class="viz" style="margin-top:16px"><div id="bic" class="plot" style="height:260px"></div></div>
+
+        <div class="method"><details>
+          <summary>How this works — the method behind the demo</summary>
+          <div class="body">
+            <p>Each pixel carries a spectral feature vector (here two standardised bands — think NDVI and a SWIR/NIR index). <strong>k-means</strong> partitions the feature space into <em>k</em> compact clusters by iteratively assigning pixels to the nearest centroid and recomputing centroids until convergence.</p>
+            <p>A latent biomass value is correlated with the spectral features, so spectrally-homogeneous clusters are also biomass-homogeneous. <strong>Variance explained</strong> is <span class="mono eq">R² = 1 − (Σ W<sub>k</sub>·σ²<sub>k</sub>) / σ²<sub>total</sub></span> — the share of biomass variance the strata capture. Because required plots scale with CV², cutting the pooled within-stratum CV translates directly into fewer plots (shown above).</p>
+            <p><strong>X-Means</strong> automates the choice of <em>k</em>: it fits k-means for a range of <em>k</em> and selects the value that minimises the Bayesian Information Criterion (BIC), balancing fit against model complexity — the same family as Weka's <code>XMeans</code>. The lower panel plots BIC vs <em>k</em> with the selected value marked.</p>
+          </div>
+        </details></div>
+      </main>
+    </div>
+  </div></div>
+
   <footer class="footer"><div class="container">
-    <span>© <span id="yr"></span> Matthew Ashpole</span><span class="muted">Neyman allocation · VCS uncertainty</span>
+    <span>© <span id="yr"></span> Matthew Ashpole</span><span class="muted">Neyman allocation · k-means / X-Means stratification</span>
   </div></footer>
 
   <script src="../assets/js/common.js"></script>
   <script src="../assets/js/sampling.js"></script>
+  <script src="../assets/js/clustering.js"></script>
   <script>document.getElementById('yr').textContent = new Date().getFullYear();</script>
 </body>
 </html>

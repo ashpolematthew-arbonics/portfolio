@@ -9,7 +9,8 @@
     { name: 'Mixed broadleaf',  area: 310, cv: 48 },
   ];
   const Z = { '90': 1.645, '95': 1.960 };
-  const state = { conf: '90', err: 10 };
+  const state = { conf: '90', err: 10, ps: 0.04 };
+  const PS_VALUES = [0, .01, .02, .03, .04, .05, .06, .07, .08, .09, .10];
 
   // build strata inputs
   const wrap = document.getElementById('strata');
@@ -41,21 +42,27 @@
     }));
   }
 
+  const REF_PLOT = 0.04; // ha: plot size at which entered CV holds
+
   function compute() {
     const strata = readStrata();
     const t = Z[state.conf], E = state.err / 100;
     const totalArea = strata.reduce((a, s) => a + s.area, 0);
     const W = strata.map(s => s.area / totalArea);
 
-    const sumWcv = strata.reduce((a, s, i) => a + W[i] * s.cv, 0);          // Σ Wh CVh
-    const sumWcv2 = strata.reduce((a, s, i) => a + W[i] * s.cv * s.cv, 0);  // Σ Wh CVh²
+    // larger plots aggregate more trees → lower CV (variance of a mean ∝ 1/area)
+    const cvScale = Math.sqrt(REF_PLOT / state.ps);
+    const cv = strata.map(s => s.cv * cvScale);
+
+    const sumWcv = strata.reduce((a, s, i) => a + W[i] * cv[i], 0);          // Σ Wh CVh
+    const sumWcv2 = strata.reduce((a, s, i) => a + W[i] * cv[i] * cv[i], 0); // Σ Wh CVh²
 
     const nStrat = Math.ceil((t / E) ** 2 * sumWcv ** 2);
     const cvPooled = Math.sqrt(sumWcv2);
     const nSRS = Math.ceil((t / E) ** 2 * cvPooled ** 2);
 
     // Neyman allocation
-    const alloc = strata.map((s, i) => Math.max(1, Math.round(nStrat * (W[i] * s.cv) / sumWcv)));
+    const alloc = strata.map((s, i) => Math.max(1, Math.round(nStrat * (W[i] * cv[i]) / sumWcv)));
     const nAlloc = alloc.reduce((a, b) => a + b, 0);
 
     // Achieved uncertainty at nAlloc plots, expressed at 90% CI
@@ -64,7 +71,8 @@
     const unc = uncAt(nAlloc);
     const deduction = Math.max(0, unc - 10); // VCS: excess over 10% half-width
 
-    return { strata, alloc, nStrat, nSRS, nAlloc, unc, deduction, sumWcv, t90, uncAt };
+    const areaSampled = nAlloc * state.ps;
+    return { strata, alloc, nStrat, nSRS, nAlloc, unc, deduction, sumWcv, t90, uncAt, areaSampled };
   }
 
   function render() {
@@ -102,6 +110,7 @@
     document.getElementById('sN').textContent = d.nAlloc;
     const saved = d.nSRS - d.nAlloc;
     document.getElementById('sSRS').textContent = (saved >= 0 ? '−' : '+') + Math.abs(saved);
+    document.getElementById('sSamp').textContent = fmt(d.areaSampled, 1) + ' ha';
     document.getElementById('sUnc').textContent = fmt(d.unc, 1) + '%';
     document.getElementById('sDed').textContent = d.deduction <= 0 ? 'none' : '−' + fmt(d.deduction, 1) + '%';
     document.getElementById('sDed').style.color = d.deduction <= 0 ? COLORS.accent : COLORS.warn;
@@ -109,5 +118,10 @@
 
   PF.bindSeg('conf', v => { state.conf = v; render(); });
   PF.bindRange('err', 'errV', () => { state.err = +document.getElementById('err').value; render(); }, ' %');
+  PF.bindRange('ps', 'psV', () => {
+    state.ps = PS_VALUES[+document.getElementById('ps').value];
+    document.getElementById('psV').textContent = state.ps.toFixed(2) + ' ha';
+    render();
+  });
   render();
 })();
