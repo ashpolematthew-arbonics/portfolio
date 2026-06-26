@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ex-ante carbon calculation — Matthew Ashpole</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/css/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌲</text></svg>" />
+  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js" charset="utf-8"></script>
+</head>
+<body>
+  <nav class="nav"><div class="container">
+    <a class="brand" href="../index.html"><span class="logo">🌲</span> Matthew Ashpole</a>
+    <div class="nav-links"><a href="../index.html#demos">All demos</a><a href="../index.html#about">About</a></div>
+  </div></nav>
+
+  <header class="demo-head"><div class="container">
+    <div class="crumb"><a href="../index.html">Home</a> / Demos / Ex-ante carbon calculation</div>
+    <h1>📈 Ex-ante carbon calculation</h1>
+    <p>Before a single credit is issued, a project must forecast how much carbon it will sequester. This tool fits a <strong>Chapman–Richards growth curve</strong> to species- and region-specific biomass, projects it forward, and converts it to issuable tCO₂e after applying a non-permanence buffer. Drag the controls — everything recomputes in your browser.</p>
+  </div></header>
+
+  <div class="demo-body"><div class="container">
+    <div class="layout">
+      <aside class="panel controls">
+        <h3>Project inputs</h3>
+
+        <div class="ctl">
+          <label>Species</label>
+          <div class="seg" id="species">
+            <button data-val="pine" class="active">Pine</button>
+            <button data-val="spruce">Spruce</button>
+            <button data-val="birch">Birch</button>
+          </div>
+        </div>
+
+        <div class="ctl">
+          <label>Region / site productivity</label>
+          <div class="seg" id="region">
+            <button data-val="north">N boreal</button>
+            <button data-val="south" class="active">S boreal</button>
+            <button data-val="temperate">Temperate</button>
+          </div>
+        </div>
+
+        <div class="ctl">
+          <label>Project area <span class="val" id="areaV">500 ha</span></label>
+          <input type="range" id="area" min="10" max="2000" step="10" value="500" />
+        </div>
+
+        <div class="ctl">
+          <label>Crediting period <span class="val" id="yearsV">30 yr</span></label>
+          <input type="range" id="years" min="10" max="60" step="5" value="30" />
+        </div>
+
+        <div class="ctl">
+          <label>Stocking / establishment success <span class="val" id="stockV">85 %</span></label>
+          <input type="range" id="stock" min="40" max="100" step="5" value="85" />
+        </div>
+
+        <div class="ctl">
+          <label>Non-permanence buffer <span class="val" id="bufV">18 %</span></label>
+          <input type="range" id="buf" min="5" max="35" step="1" value="18" />
+        </div>
+
+        <div class="ctl">
+          <label class="checkrow"><input type="checkbox" id="mc" checked /> Show Monte-Carlo uncertainty (P5–P95)</label>
+        </div>
+
+        <p class="note">Growth parameters are synthetic but realistic. Region scales the asymptote (max biomass) and growth rate; stocking scales the asymptote linearly.</p>
+      </aside>
+
+      <main>
+        <div class="stat-row">
+          <div class="stat"><div class="k">Net issuable</div><div class="v" id="sTotal">—</div><div class="muted" style="font-size:11px">tCO₂e over period</div></div>
+          <div class="stat"><div class="k">Mean annual</div><div class="v" id="sAnnual">—</div><div class="muted" style="font-size:11px">tCO₂e / yr</div></div>
+          <div class="stat"><div class="k">Peak MAI year</div><div class="v small" id="sPeak">—</div><div class="muted" style="font-size:11px">max annual increment</div></div>
+          <div class="stat"><div class="k">Per-hectare</div><div class="v small" id="sHa">—</div><div class="muted" style="font-size:11px">tCO₂e / ha (gross)</div></div>
+        </div>
+
+        <div class="viz"><div id="plot" class="plot"></div></div>
+        <div class="viz" style="margin-top:16px"><div id="plot2" class="plot" style="height:280px"></div></div>
+
+        <div class="method">
+          <details>
+            <summary>How this works — the method behind the demo</summary>
+            <div class="body">
+              <p>Biomass accumulation is modelled with the <strong>Chapman–Richards</strong> function, the workhorse of forest growth modelling:</p>
+              <p class="mono eq">B(t) = B<sub>max</sub> · (1 − e<sup>−k·t</sup>)<sup>p</sup></p>
+              <p>where <code>B_max</code> is the asymptotic biomass (tCO₂e/ha) set by species × site, <code>k</code> governs growth rate and <code>p</code> the sigmoidal shape. Annual carbon increment is the year-on-year difference, multiplied by project area and stocking.</p>
+              <p>The <strong>uncertainty band</strong> comes from a Monte-Carlo run (250 draws) that perturbs <code>k</code> and <code>p</code> within calibration bounds, then takes the P5–P95 envelope — mirroring how ex-ante uncertainty is propagated in practice.</p>
+              <p>Net issuable credits apply a <strong>non-permanence buffer</strong> withholding (à la Verra AFOLU): <code>net = gross × (1 − buffer)</code>. In production this also nets out baseline and leakage; those are held at zero here for clarity.</p>
+            </div>
+          </details>
+        </div>
+      </main>
+    </div>
+  </div></div>
+
+  <footer class="footer"><div class="container">
+    <span>© <span id="yr"></span> Matthew Ashpole</span><span class="muted">Synthetic data · method is production-real</span>
+  </div></footer>
+
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/ex-ante.js"></script>
+  <script>document.getElementById('yr').textContent = new Date().getFullYear();</script>
+</body>
+</html>

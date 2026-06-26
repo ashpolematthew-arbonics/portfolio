@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stratification & plot sampling — Matthew Ashpole</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/css/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌲</text></svg>" />
+  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js" charset="utf-8"></script>
+</head>
+<body>
+  <nav class="nav"><div class="container">
+    <a class="brand" href="../index.html"><span class="logo">🌲</span> Matthew Ashpole</a>
+    <div class="nav-links"><a href="../index.html#demos">All demos</a><a href="../index.html#about">About</a></div>
+  </div></nav>
+
+  <header class="demo-head"><div class="container">
+    <div class="crumb"><a href="../index.html">Home</a> / Demos / Stratification &amp; plot sampling</div>
+    <h1>📊 Stratification &amp; plot sampling statistics</h1>
+    <p>Field inventory is the most expensive part of an MRV programme, so you sample as few plots as you can while still meeting the methodology's precision target. This tool sizes a stratified field campaign: enter each stratum's area and variability, set your precision target, and it computes the VCS-compliant plot count, the optimal allocation across strata, and the uncertainty deduction you'd incur.</p>
+  </div></header>
+
+  <div class="demo-body"><div class="container">
+    <div class="layout">
+      <aside class="panel controls">
+        <h3>Targets</h3>
+        <div class="ctl">
+          <label>Confidence level</label>
+          <div class="seg" id="conf">
+            <button data-val="90" class="active">90%</button>
+            <button data-val="95">95%</button>
+          </div>
+        </div>
+        <div class="ctl">
+          <label>Target allowable error <span class="val" id="errV">10 %</span></label>
+          <input type="range" id="err" min="5" max="25" step="1" value="10" />
+        </div>
+
+        <h3 style="margin-top:22px">Strata</h3>
+        <div id="strata"></div>
+        <p class="note">CV = coefficient of variation of biomass within a stratum (field-derived). More homogeneous strata (lower CV) need fewer plots.</p>
+      </aside>
+
+      <main>
+        <div class="stat-row">
+          <div class="stat"><div class="k">Plots needed</div><div class="v" id="sN">—</div><div class="muted" style="font-size:11px">stratified (Neyman)</div></div>
+          <div class="stat"><div class="k">Vs simple random</div><div class="v small" id="sSRS">—</div><div class="muted" style="font-size:11px">plots saved</div></div>
+          <div class="stat"><div class="k">Achieved uncertainty</div><div class="v small" id="sUnc">—</div><div class="muted" style="font-size:11px">90% CI half-width</div></div>
+          <div class="stat"><div class="k">Uncertainty deduction</div><div class="v small" id="sDed">—</div><div class="muted" style="font-size:11px">VCS rule</div></div>
+        </div>
+
+        <div class="viz"><div id="alloc" class="plot" style="height:320px"></div></div>
+        <div class="viz" style="margin-top:16px"><div id="curve" class="plot" style="height:320px"></div></div>
+
+        <div class="method"><details>
+          <summary>How this works — the method behind the demo</summary>
+          <div class="body">
+            <p>For a target relative error <code>E</code> at confidence <code>t</code>, the stratified sample size with <strong>Neyman optimal allocation</strong> (large-population form) is:</p>
+            <p class="mono eq">n = (t / E)² · (Σ W<sub>h</sub>·CV<sub>h</sub>)²</p>
+            <p>where <code>W_h</code> is each stratum's area weight and <code>CV_h</code> its coefficient of variation. Plots are allocated <span class="mono eq">n<sub>h</sub> = n · (W<sub>h</sub>CV<sub>h</sub>) / Σ W<sub>h</sub>CV<sub>h</sub></span> — more plots go to bigger, more variable strata. The naïve <strong>simple-random</strong> alternative uses the pooled CV <span class="mono eq">√(Σ W<sub>h</sub>CV<sub>h</sub>²)</span>; the difference is the efficiency you buy with stratification.</p>
+            <p>The <strong>uncertainty deduction</strong> follows the VCS rule of thumb: when the 90% confidence half-width exceeds 10% of the estimate, the creditable amount is reduced by the excess — a direct financial incentive to sample enough.</p>
+          </div>
+        </details></div>
+      </main>
+    </div>
+  </div></div>
+
+  <footer class="footer"><div class="container">
+    <span>© <span id="yr"></span> Matthew Ashpole</span><span class="muted">Neyman allocation · VCS uncertainty</span>
+  </div></footer>
+
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/sampling.js"></script>
+  <script>document.getElementById('yr').textContent = new Date().getFullYear();</script>
+</body>
+</html>

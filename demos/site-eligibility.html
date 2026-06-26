@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Drone site eligibility — Matthew Ashpole</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="../assets/css/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌲</text></svg>" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+  <nav class="nav"><div class="container">
+    <a class="brand" href="../index.html"><span class="logo">🌲</span> Matthew Ashpole</a>
+    <div class="nav-links"><a href="../index.html#demos">All demos</a><a href="../index.html#about">About</a></div>
+  </div></nav>
+
+  <header class="demo-head"><div class="container">
+    <div class="crumb"><a href="../index.html">Home</a> / Demos / Drone site eligibility</div>
+    <h1>🛰️ Drone site eligibility assessment</h1>
+    <p>Not every hectare can host a carbon project. Land must clear a stack of eligibility rules before it qualifies for afforestation/reforestation crediting. Toggle each rule below and the map re-screens a synthetic landscape of land parcels in real time — green parcels pass, red fail, and the eligible-area tally updates instantly.</p>
+  </div></header>
+
+  <div class="demo-body"><div class="container">
+    <div class="layout">
+      <aside class="panel controls">
+        <h3>Eligibility criteria</h3>
+        <label class="checkrow"><input type="checkbox" id="c_forest" checked /> Non-forest for ≥ 10 yrs <span class="muted" style="font-size:12px">(additionality)</span></label>
+        <label class="checkrow"><input type="checkbox" id="c_slope" checked /> Slope ≤ 30°</label>
+        <label class="checkrow"><input type="checkbox" id="c_peat" checked /> Not on peat / wetland</label>
+        <label class="checkrow"><input type="checkbox" id="c_protected" checked /> Outside protected areas</label>
+        <label class="checkrow"><input type="checkbox" id="c_landuse" checked /> Prior use: grazing / cropland</label>
+        <label class="checkrow"><input type="checkbox" id="c_minarea" checked /> Parcel ≥ 0.5 ha (min size)</label>
+
+        <h3 style="margin-top:24px">Display</h3>
+        <div class="ctl">
+          <div class="seg" id="basemap">
+            <button data-val="sat" class="active">Satellite</button>
+            <button data-val="osm">Map</button>
+          </div>
+        </div>
+
+        <div class="legend">
+          <span><i style="background:#4ade80"></i> Eligible</span>
+          <span><i style="background:#f87171"></i> Excluded</span>
+        </div>
+        <p class="note">Click any parcel to see exactly which rule(s) it failed. Landscape is procedurally generated &amp; seeded — synthetic, not a real site.</p>
+      </aside>
+
+      <main>
+        <div class="stat-row">
+          <div class="stat"><div class="k">Eligible area</div><div class="v" id="sElig">—</div><div class="muted" style="font-size:11px">hectares</div></div>
+          <div class="stat"><div class="k">Eligible parcels</div><div class="v small" id="sCount">—</div><div class="muted" style="font-size:11px">of <span id="sTotalP">0</span></div></div>
+          <div class="stat"><div class="k">Pass rate</div><div class="v small" id="sRate">—</div><div class="muted" style="font-size:11px">by area</div></div>
+          <div class="stat"><div class="k">Est. credits</div><div class="v small" id="sCred">—</div><div class="muted" style="font-size:11px">tCO₂e / yr @ 8 t/ha</div></div>
+        </div>
+        <div class="viz"><div id="map"></div>
+          <div id="reason" class="note" style="min-height:18px">Hover or click a parcel for details.</div>
+        </div>
+
+        <div class="method"><details>
+          <summary>How this works — the method behind the demo</summary>
+          <div class="body">
+            <p>Each parcel carries attributes a real screening pipeline derives from geospatial layers: <strong>land-cover time series</strong> (Sentinel-2 / Dynamic World for the 10-year forest test), a <strong>DEM-derived slope</strong> raster, <strong>peat &amp; wetland</strong> maps, <strong>protected-area</strong> boundaries (WDPA), and prior-use classification.</p>
+            <p>A parcel is <strong>eligible</strong> only if it passes <em>every</em> enabled rule — a logical AND across criteria. Disabling a rule relaxes the screen, which is why the eligible area grows as you uncheck boxes. The eligible-area sum drives a first-order credit estimate at a nominal 8 tCO₂e/ha/yr.</p>
+            <p>In production this same logic runs over thousands of parcels from cadastral data, with drone orthomosaics used to ground-truth borderline cases.</p>
+          </div>
+        </details></div>
+      </main>
+    </div>
+  </div></div>
+
+  <footer class="footer"><div class="container">
+    <span>© <span id="yr"></span> Matthew Ashpole</span><span class="muted">Synthetic parcels · real screening logic</span>
+  </div></footer>
+
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/site-eligibility.js"></script>
+  <script>document.getElementById('yr').textContent = new Date().getFullYear();</script>
+</body>
+</html>

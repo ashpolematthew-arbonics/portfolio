@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tree age from LiDAR — Matthew Ashpole</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/css/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌲</text></svg>" />
+  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js" charset="utf-8"></script>
+</head>
+<body>
+  <nav class="nav"><div class="container">
+    <a class="brand" href="../index.html"><span class="logo">🌲</span> Matthew Ashpole</a>
+    <div class="nav-links"><a href="../index.html#demos">All demos</a><a href="../index.html#about">About</a></div>
+  </div></nav>
+
+  <header class="demo-head"><div class="container">
+    <div class="crumb"><a href="../index.html">Home</a> / Demos / Tree age from LiDAR</div>
+    <h1>🌲 Tree age estimation from LiDAR</h1>
+    <p>Drone LiDAR returns a dense 3-D point cloud; rasterise it and you get a <strong>canopy height model</strong> (CHM) — height above ground at every pixel. From structure alone we can detect individual tree crowns and, given a site-index curve, invert each crown's height into an estimated age. Adjust the detection threshold and site productivity and watch the stand-age estimate respond.</p>
+  </div></header>
+
+  <div class="demo-body"><div class="container">
+    <div class="layout">
+      <aside class="panel controls">
+        <h3>Inversion settings</h3>
+
+        <div class="ctl">
+          <label>Species (height–age curve)</label>
+          <div class="seg" id="species">
+            <button data-val="pine" class="active">Pine</button>
+            <button data-val="spruce">Spruce</button>
+            <button data-val="birch">Birch</button>
+          </div>
+        </div>
+
+        <div class="ctl">
+          <label>Site index (H at base age 50) <span class="val" id="siV">24 m</span></label>
+          <input type="range" id="si" min="12" max="34" step="1" value="24" />
+        </div>
+
+        <div class="ctl">
+          <label>Crown detection threshold <span class="val" id="thrV">5 m</span></label>
+          <input type="range" id="thr" min="2" max="15" step="1" value="5" />
+        </div>
+
+        <div class="ctl">
+          <label class="checkrow"><input type="checkbox" id="showCrowns" checked /> Overlay detected crowns</label>
+        </div>
+
+        <p class="note">CHM is a synthetic 64×64 raster (~1 ha). Crowns are real local-maxima detections on the surface; ages come from inverting a Chapman–Richards height–age model.</p>
+      </aside>
+
+      <main>
+        <div class="stat-row">
+          <div class="stat"><div class="k">Crowns detected</div><div class="v" id="sN">—</div></div>
+          <div class="stat"><div class="k">Top height</div><div class="v small" id="sTop">—</div><div class="muted" style="font-size:11px">P95 of crowns</div></div>
+          <div class="stat"><div class="k">Est. stand age</div><div class="v small" id="sAge">—</div><div class="muted" style="font-size:11px">from top height</div></div>
+          <div class="stat"><div class="k">Stems / ha</div><div class="v small" id="sDens">—</div></div>
+        </div>
+
+        <div class="viz"><div id="chm" class="plot" style="height:420px"></div></div>
+        <div class="viz" style="margin-top:16px"><div id="curve" class="plot" style="height:320px"></div></div>
+
+        <div class="method"><details>
+          <summary>How this works — the method behind the demo</summary>
+          <div class="body">
+            <p>A <strong>CHM</strong> is the LiDAR digital surface model minus the bare-earth model. Individual trees appear as peaks; we detect crowns with a <strong>local-maximum filter</strong> — a pixel taller than all neighbours and above a height threshold (variable-window methods scale the window with height in production).</p>
+            <p>Stand age comes from inverting a site-index height–age curve. We model top height as Chapman–Richards <span class="mono eq">H = H<sub>max</sub>·(1−e<sup>−k·age</sup>)<sup>p</sup></span>, anchored so H equals the <strong>site index</strong> at base age 50. Inverting for age:</p>
+            <p class="mono eq">age = −ln(1 − (H / H<sub>max</sub>)<sup>1/p</sup>) / k</p>
+            <p>Because LiDAR fixes the height, a more productive site (higher SI) implies a <em>younger</em> stand at the same height — slide the site index and the age estimate drops accordingly.</p>
+          </div>
+        </details></div>
+      </main>
+    </div>
+  </div></div>
+
+  <footer class="footer"><div class="container">
+    <span>© <span id="yr"></span> Matthew Ashpole</span><span class="muted">CHM → crowns → age</span>
+  </div></footer>
+
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/lidar-age.js"></script>
+  <script>document.getElementById('yr').textContent = new Date().getFullYear();</script>
+</body>
+</html>

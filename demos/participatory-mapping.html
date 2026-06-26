@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Drone participatory mapping — Matthew Ashpole</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+  <link rel="stylesheet" href="../assets/css/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌲</text></svg>" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+</head>
+<body>
+  <nav class="nav"><div class="container">
+    <a class="brand" href="../index.html"><span class="logo">🌲</span> Matthew Ashpole</a>
+    <div class="nav-links"><a href="../index.html#demos">All demos</a><a href="../index.html#about">About</a></div>
+  </div></nav>
+
+  <header class="demo-head"><div class="container">
+    <div class="crumb"><a href="../index.html">Home</a> / Demos / Drone participatory mapping</div>
+    <h1>🗺️ Drone participatory mapping</h1>
+    <p>Participatory mapping puts the pen in the community's hand: landholders trace their own boundaries over high-resolution drone orthoimagery, building a shared, geo-referenced record of land tenure and use. Use the draw tools on the left of the map to digitise parcels — area, perimeter and a running land-cover summary update as you go, and you can export the whole thing as GeoJSON.</p>
+  </div></header>
+
+  <div class="demo-body"><div class="container">
+    <div class="layout">
+      <aside class="panel controls">
+        <h3>Mapping session</h3>
+        <div class="ctl">
+          <label>Land-cover class for next parcel</label>
+          <div class="seg" id="lcclass" style="flex-wrap:wrap">
+            <button data-val="agroforestry" class="active">Agroforestry</button>
+            <button data-val="grazing">Grazing</button>
+            <button data-val="cropland">Cropland</button>
+            <button data-val="forest">Existing forest</button>
+            <button data-val="settlement">Settlement</button>
+          </div>
+        </div>
+        <p class="note">Pick a class, then use the ▢ / polygon tools on the map to draw. Double-click to finish a polygon.</p>
+
+        <h3 style="margin-top:22px">Land-cover summary</h3>
+        <div id="summary" class="muted" style="font-size:13.5px">No parcels yet — start drawing.</div>
+
+        <div class="pill-row" style="margin-top:18px">
+          <button class="btn btn-primary" id="export">Export GeoJSON</button>
+          <button class="btn btn-ghost" id="clear">Clear</button>
+        </div>
+      </aside>
+
+      <main>
+        <div class="stat-row">
+          <div class="stat"><div class="k">Parcels</div><div class="v" id="sN">0</div></div>
+          <div class="stat"><div class="k">Total area</div><div class="v small" id="sArea">0 ha</div></div>
+          <div class="stat"><div class="k">Total perimeter</div><div class="v small" id="sPerim">0 km</div></div>
+          <div class="stat"><div class="k">Classes used</div><div class="v small" id="sCls">0</div></div>
+        </div>
+        <div class="viz"><div id="map"></div></div>
+
+        <div class="method"><details>
+          <summary>How this works — the method behind the demo</summary>
+          <div class="body">
+            <p>The basemap is high-resolution imagery standing in for a <strong>drone orthomosaic</strong> — a centimetre-scale, geo-referenced photo built by stitching hundreds of overlapping UAV images via structure-from-motion.</p>
+            <p>Polygons are digitised in the browser and areas computed with the <strong>spherical excess</strong> formula on the WGS-84 ellipsoid (the same maths Leaflet/Turf use), giving true ground area regardless of latitude. Each parcel is tagged with a land-cover class and serialised to <strong>GeoJSON</strong> — the interchange format that feeds straight into QGIS, PostGIS or a carbon-project MRV database.</p>
+            <p>In the field this runs offline on a tablet, letting communities verify and correct machine land-cover classifications against what they know on the ground.</p>
+          </div>
+        </details></div>
+      </main>
+    </div>
+  </div></div>
+
+  <footer class="footer"><div class="container">
+    <span>© <span id="yr"></span> Matthew Ashpole</span><span class="muted">Draw, measure, export GeoJSON</span>
+  </div></footer>
+
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/participatory-mapping.js"></script>
+  <script>document.getElementById('yr').textContent = new Date().getFullYear();</script>
+</body>
+</html>

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Matthew Ashpole — Carbon MRV & Geospatial Data Science</title>
+  <meta name="description" content="Interactive demos of forest carbon ex-ante estimation, LiDAR tree-age modelling, drone mapping, site eligibility and inventory sampling statistics." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌲</text></svg>" />
+</head>
+<body>
+  <nav class="nav">
+    <div class="container">
+      <a class="brand" href="index.html"><span class="logo">🌲</span> Matthew Ashpole</a>
+      <div class="nav-links">
+        <a href="#demos">Demos</a>
+        <a href="#about">About</a>
+        <a href="https://github.com/" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div class="container">
+      <span class="badge">Forest Carbon · MRV · Geospatial ML</span>
+      <h1 style="margin-top:16px">Turning forests into <span class="grad">measurable, verifiable carbon</span>.</h1>
+      <p class="lede">I build the data-science pipelines behind nature-based carbon projects — from ex-ante credit forecasting and LiDAR-derived forest structure to drone mapping, eligibility screening and statistically-rigorous field sampling. Below are five live, interactive demos. Every one runs entirely in your browser.</p>
+      <div class="pill-row">
+        <a class="btn btn-primary" href="#demos">Explore the demos ↓</a>
+        <a class="btn btn-ghost" href="#about">About me</a>
+      </div>
+      <div class="pill-row" style="margin-top:26px">
+        <span class="pill">Python</span>
+        <span class="pill">Chapman–Richards growth modelling</span>
+        <span class="pill">LiDAR / CHM</span>
+        <span class="pill">Leaflet / GIS</span>
+        <span class="pill">VCS / Verra methodologies</span>
+        <span class="pill">Monte-Carlo uncertainty</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="section" id="demos">
+      <div class="container">
+        <h2>Interactive demos</h2>
+        <p class="sub">Synthetic but realistic data — modelled on real production workflows. Click any card to open the live tool.</p>
+        <div class="grid">
+
+          <a class="card" href="demos/ex-ante.html">
+            <div class="icon">📈</div>
+            <h3>Ex-ante carbon calculation</h3>
+            <p>Forecast the carbon a planting project will sequester. Pick species, region and area; watch a Chapman–Richards growth curve translate into annual & cumulative tCO₂e with a Monte-Carlo uncertainty band.</p>
+            <div class="tags"><span class="tag">Chapman–Richards</span><span class="tag">Monte-Carlo</span></div>
+            <div class="go">Open demo →</div>
+          </a>
+
+          <a class="card" href="demos/site-eligibility.html">
+            <div class="icon">🛰️</div>
+            <h3>Drone site eligibility assessment</h3>
+            <p>Screen land parcels against afforestation eligibility rules — slope, prior land use, the 10-year forest-cover test, peat and protected areas. Toggle criteria and watch the eligible area recompute live on the map.</p>
+            <div class="tags"><span class="tag">Leaflet</span><span class="tag">Eligibility rules</span></div>
+            <div class="go">Open demo →</div>
+          </a>
+
+          <a class="card" href="demos/lidar-age.html">
+            <div class="icon">🌲</div>
+            <h3>Tree age from LiDAR</h3>
+            <p>Drone LiDAR gives a canopy height model; height plus site index gives stand age. Detect individual crowns, then invert a height–age curve to estimate stand establishment year from structure alone.</p>
+            <div class="tags"><span class="tag">CHM</span><span class="tag">Height–age inversion</span></div>
+            <div class="go">Open demo →</div>
+          </a>
+
+          <a class="card" href="demos/participatory-mapping.html">
+            <div class="icon">🗺️</div>
+            <h3>Drone participatory mapping</h3>
+            <p>Map land boundaries collaboratively over drone orthoimagery. Draw parcels, auto-compute area and perimeter, classify land cover, and export the result as GeoJSON — the digital backbone of community land tenure.</p>
+            <div class="tags"><span class="tag">Leaflet.draw</span><span class="tag">GeoJSON</span></div>
+            <div class="go">Open demo →</div>
+          </a>
+
+          <a class="card" href="demos/sampling.html">
+            <div class="icon">📊</div>
+            <h3>Stratification & plot sampling</h3>
+            <p>How many field plots do you need? Set target precision and confidence, define strata, and compute the VCS-compliant sample size with Neyman optimal allocation — plus the uncertainty deduction it earns you.</p>
+            <div class="tags"><span class="tag">VCS n-plots</span><span class="tag">Neyman allocation</span></div>
+            <div class="go">Open demo →</div>
+          </a>
+
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="about">
+      <div class="container" style="max-width:760px">
+        <h2>About</h2>
+        <p class="muted">I'm a data scientist working at the intersection of forestry, remote sensing and carbon-market science. My work spans the full measurement, reporting and verification (MRV) chain: building species-specific growth models calibrated to field inventory, deriving forest structure from drone and airborne LiDAR, designing statistically-defensible sampling schemes for Verra/VCS projects, and shipping the tooling that lets project developers screen land at scale.</p>
+        <p class="muted">These demos are self-contained reconstructions of that work using synthetic data, so nothing here exposes client or proprietary information — but the methods, formulas and structure are the real thing.</p>
+        <div class="pill-row" style="margin-top:20px">
+          <a class="btn btn-primary" href="mailto:matthew@arbonics.com">Get in touch</a>
+          <a class="btn btn-ghost" href="https://github.com/" target="_blank" rel="noopener">GitHub</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <span>© <span id="yr"></span> Matthew Ashpole · Built as a static site, hosted free on GitHub Pages.</span>
+      <span class="muted">All data shown is synthetic / illustrative.</span>
+    </div>
+  </footer>
+  <script>document.getElementById('yr').textContent = new Date().getFullYear();</script>
+</body>
+</html>
