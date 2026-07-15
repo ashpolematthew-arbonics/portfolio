@@ -15,6 +15,8 @@ window.PF = (function () {
       yaxis: { gridcolor: COLORS.grid, zerolinecolor: COLORS.grid, linecolor: COLORS.grid },
       legend: { orientation: 'h', y: 1.12, x: 0, font: { size: 12 } },
       hovermode: 'x unified',
+      hoverlabel: { bgcolor: 'rgba(9,16,12,0.96)', bordercolor: '#4ade80',
+                    font: { family: 'Inter, sans-serif', color: '#f3f8f4', size: 13 } },
     }, extra);
   }
   const CONFIG = { displayModeBar: false, responsive: true };

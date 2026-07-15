@@ -129,11 +129,11 @@
       { x: bc.map(c => c.label), y: bc.map(c => c.spawn_mean), type: 'bar', name: 'Spawn 2010', marker: { color: '#41ab5d' } },
       { x: bc.map(c => c.label), y: bc.map(c => c.gedi_mean), type: 'bar', name: 'GEDI L4B', marker: { color: '#38bdf8' } },
     ], plotLayout({
-      margin: { l: 55, r: 15, t: 34, b: 60 }, barmode: 'group',
-      title: { text: 'Mean AGB by land cover — divergence grows with tree cover', font: { size: 13 }, x: 0.01 },
+      margin: { l: 55, r: 15, t: 40, b: 88 }, barmode: 'group',
+      title: { text: 'Mean AGB by land cover — divergence grows with tree cover', font: { size: 13 }, x: 0.01, y: 0.97, yanchor: 'top' },
       yaxis: { title: 'Mean AGB (Mg/ha)', gridcolor: COLORS.grid },
       xaxis: { gridcolor: COLORS.grid },
-      legend: { orientation: 'h', y: 1.15, font: { size: 12 } },
+      legend: { orientation: 'h', y: -0.22, x: 0.5, xanchor: 'center', font: { size: 12 } },
     }), CONFIG);
   }
 
