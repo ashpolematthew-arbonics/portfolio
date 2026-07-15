@@ -4,13 +4,23 @@ A zero-build static portfolio site with five live, browser-only interactive demo
 
 | Demo | What it shows | Tech |
 |------|---------------|------|
+| **Biomass-map disagreement audit** ⭐ *real data* | Spawn 2010 vs GEDI L4B AGB over N. Ghana — agree on regional total, disagree ~48% pixel-wise; crediting implications | Earth Engine + Leaflet + Plotly |
 | **Ex-ante carbon calculation** | Chapman–Richards growth → annual & cumulative tCO₂e with Monte-Carlo uncertainty | Plotly |
 | **Drone site eligibility** | Screening parcels against AND-ed afforestation eligibility rules | Leaflet |
 | **Tree age from LiDAR** | Synthetic CHM, local-maxima crown detection, height–age inversion | Plotly |
 | **Drone participatory mapping** | Draw/measure land parcels over imagery, export GeoJSON | Leaflet.draw |
 | **Stratification & plot sampling** | VCS plot-count sizing with Neyman allocation & uncertainty deduction | Plotly |
 
-All data is **synthetic / illustrative** — no client or proprietary information. The methods, formulas and structure mirror real production workflows.
+Most demos use **synthetic / illustrative** data (no client or proprietary information); the methods, formulas and structure mirror real production workflows. The **biomass-map disagreement audit uses real published satellite data** (NASA GEDI L4B, Spawn & Gibbs, ESA WorldCover), pre-computed in Google Earth Engine.
+
+## Real-data pipeline
+
+`pipeline/build_biomass_audit.py` reproduces the biomass audit: it pulls the three products from Earth Engine over a northern-Ghana window, computes agreement metrics stratified by land cover, translates the disagreement into carbon-crediting terms, and exports the static assets the demo reads (`assets/data/biomass_audit.json`, `assets/img/agb_*.png`). Requires an authenticated Earth Engine project:
+
+```bash
+pip install earthengine-api numpy requests pillow
+python pipeline/build_biomass_audit.py   # set EE_PROJECT env var to your GEE project
+```
 
 ## Stack
 

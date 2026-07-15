@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Biomass-map disagreement audit — Matthew Ashpole</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="../assets/css/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌲</text></svg>" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet-side-by-side@2.2.0/index.js"></script>
+  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js" charset="utf-8"></script>
+</head>
+<body>
+  <nav class="nav"><div class="container">
+    <a class="brand" href="../index.html"><span class="logo">🌲</span> Matthew Ashpole</a>
+    <div class="nav-links"><a href="../index.html#demos">All demos</a><a href="../index.html#about">About</a></div>
+  </div></nav>
+
+  <header class="demo-head"><div class="container">
+    <div class="crumb"><a href="../index.html">Home</a> / Demos / Biomass-map disagreement audit</div>
+    <h1>🛰️ Biomass-map disagreement audit <span class="badge">real data</span></h1>
+    <p>How confident are you in the tonnes? Two published, independent aboveground-biomass (AGB) maps — <strong>Spawn &amp; Gibbs (2010)</strong> and <strong>NASA GEDI L4B (2019–2023)</strong> — are overlaid on a real dryland-savanna window in <strong>northern Ghana</strong> (the Bongo–Bolgatanga–Yendi belt of the Great Green Wall). They agree on the regional total to within 2% — yet disagree by roughly <strong>48% pixel-by-pixel</strong>. Swipe the maps, then see what that means for crediting.</p>
+  </div></header>
+
+  <div class="demo-body"><div class="container">
+
+    <div class="stat-row" id="stats"></div>
+
+    <div class="layout">
+      <aside class="panel controls">
+        <h3>Map</h3>
+        <div class="ctl">
+          <label>View</label>
+          <div class="seg" id="view">
+            <button data-val="compare" class="active">Swipe compare</button>
+            <button data-val="diff">Difference</button>
+          </div>
+        </div>
+        <div class="ctl">
+          <label>Layer opacity <span class="val" id="opV">85 %</span></label>
+          <input type="range" id="op" min="20" max="100" step="5" value="85" />
+        </div>
+
+        <div id="legend-agb">
+          <h3 style="margin-top:20px">AGB (Mg/ha)</h3>
+          <div style="height:12px;border-radius:4px;background:linear-gradient(90deg,#f7fcb9,#addd8e,#41ab5d,#238443,#005a32)"></div>
+          <div class="legend" style="justify-content:space-between"><span>0</span><span>20</span><span>40+</span></div>
+          <p class="note" style="margin-top:8px"><strong>Left:</strong> Spawn &amp; Gibbs 2010 &nbsp;·&nbsp; <strong>Right:</strong> GEDI L4B. Drag the divider.</p>
+        </div>
+        <div id="legend-diff" style="display:none">
+          <h3 style="margin-top:20px">Spawn − GEDI (Mg/ha)</h3>
+          <div style="height:12px;border-radius:4px;background:linear-gradient(90deg,#8c510a,#d8b365,#f5f5f5,#5ab4ac,#01665e)"></div>
+          <div class="legend" style="justify-content:space-between"><span>−15</span><span>0</span><span>+15</span></div>
+          <p class="note" style="margin-top:8px">Teal = GEDI sees more biomass; brown = the 2010 map does. Diagonal striping &amp; gaps are GEDI's orbital sampling.</p>
+        </div>
+      </aside>
+
+      <main>
+        <div class="viz"><div id="map"></div></div>
+        <div class="viz" style="margin-top:16px"><div id="scatter" class="plot" style="height:430px"></div></div>
+        <div class="viz" style="margin-top:16px"><div id="bars" class="plot" style="height:340px"></div></div>
+
+        <div class="method"><details>
+          <summary>How this works — data &amp; method</summary>
+          <div class="body">
+            <p><strong>Real, published data</strong>, processed in Google Earth Engine and exported to static assets (this page runs entirely in your browser):</p>
+            <ul>
+              <li><strong>Spawn &amp; Gibbs (2020)</strong> harmonized aboveground biomass, ~2010 — <code>NASA/ORNL/biomass_carbon_density/v1</code></li>
+              <li><strong>GEDI L4B (v2)</strong> gridded aboveground biomass density, 2019–2023 — <code>LARSE/GEDI/GEDI04_B_002</code></li>
+              <li><strong>ESA WorldCover 2021</strong> for land-cover stratification — <code>ESA/WorldCover/v200</code></li>
+            </ul>
+            <p>Both AGB products are resampled to a common 1 km grid over the window. I draw ~2,400 valid samples, compute agreement metrics (bias, MAE, RMSE, R²) and stratify them by land cover. The scatter and bars are those real samples; the maps are the real rasters.</p>
+            <p><strong>Why it matters.</strong> The maps agree on the <em>regional</em> mean (≈7.5 Mg/ha, within 2%) but correlate weakly at the pixel scale (R² ≈ 0.29, MAE ≈ 48%). Carbon projects are sited and stratified <em>locally</em>, so which map you trust materially changes a project's baseline stock. Translating AGB → carbon (×0.47) → CO₂e (×44/12), the typical local discrepancy is ≈6 tCO₂e/ha — for a 10,000 ha footprint that's tens of thousands of tonnes of ambiguity before a single plot is measured. This is the argument for field calibration and lidar, and for honest uncertainty deductions.</p>
+            <p class="muted">Pipeline source: <code>pipeline/build_biomass_audit.py</code> in the repo — fully reproducible with an Earth Engine account.</p>
+          </div>
+        </details></div>
+      </main>
+    </div>
+  </div></div>
+
+  <footer class="footer"><div class="container">
+    <span>© <span id="yr"></span> Matthew Ashpole</span><span class="muted">Real data · Spawn 2010 vs GEDI L4B · N. Ghana</span>
+  </div></footer>
+
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/biomass-audit.js"></script>
+  <script>document.getElementById('yr').textContent = new Date().getFullYear();</script>
+</body>
+</html>
