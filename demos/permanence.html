@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Permanence & bark-beetle risk — Matthew Ashpole</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="../assets/css/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌲</text></svg>" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js" charset="utf-8"></script>
+</head>
+<body>
+  <nav class="nav"><div class="container">
+    <a class="brand" href="../index.html"><span class="logo">🌲</span> Matthew Ashpole</a>
+    <div class="nav-links"><a href="../index.html#demos">All demos</a><a href="../index.html#about">About</a></div>
+  </div></nav>
+
+  <header class="demo-head"><div class="container">
+    <div class="crumb"><a href="../index.html">Home</a> / Demos / Permanence &amp; bark-beetle risk</div>
+    <h1>🪲 Permanence &amp; disturbance risk <span class="badge">real data</span></h1>
+    <p>A carbon credit only counts if the carbon stays put. Europe's spruce forests are being killed by the bark beetle (<em>Ips typographus</em>) at unprecedented rates — a direct reversal risk that sizes a project's buffer pool. Below: <strong>real Sentinel-2 detection</strong> of the Harz outbreak (Germany) using my own EO pipeline, then a Monte-Carlo model that turns disturbance risk into the buffer withholding a project must carry.</p>
+  </div></header>
+
+  <div class="demo-body"><div class="container">
+
+    <!-- ===== Section 1: real EO detection ===== -->
+    <h2 style="margin:0 0 4px">1 · Real detection — Sentinel-2, Harz outbreak</h2>
+    <p class="sub">Chlorophyll Red-Edge (CIre) &amp; burn-ratio z-scores vs a 2018 baseline, staged after Bárta et al. (2022). Detection year 2022 (outbreak peak).</p>
+    <div class="stat-row" id="eostats"></div>
+    <div class="layout">
+      <aside class="panel controls">
+        <h3>Infestation stage</h3>
+        <div class="ctl">
+          <label>Overlay opacity <span class="val" id="opV">85 %</span></label>
+          <input type="range" id="op" min="20" max="100" step="5" value="85" />
+        </div>
+        <div class="legend">
+          <span><i style="background:#facc15"></i> Green attack</span>
+          <span><i style="background:#fb923c"></i> Yellow attack</span>
+          <span><i style="background:#7f1d1d"></i> Grey / dead</span>
+        </div>
+        <p class="note">Only bark-beetle-affected spruce canopy is drawn; healthy forest is transparent. Detection uses <code>utils/bark_beetle_eo.py</code> run in Earth Engine.</p>
+      </aside>
+      <main>
+        <div class="viz"><div id="map"></div></div>
+        <div class="viz" style="margin-top:16px"><div id="ts" class="plot" style="height:340px"></div></div>
+      </main>
+    </div>
+
+    <!-- ===== Section 2: buffer model ===== -->
+    <div class="section" style="border-top:1px solid var(--border);margin-top:32px"><div style="padding-top:8px">
+      <h2 style="margin:0 0 4px">2 · From disturbance to buffer pool</h2>
+      <p class="sub">Combine the EO signal with stand-level risk factors (Hlásny et al. 2021; Seidl et al. 2016) into a composite risk, then Monte-Carlo simulate reversals over the crediting period to size the buffer.</p>
+      <div class="stat-row" id="bufstats"></div>
+      <div class="layout">
+        <aside class="panel controls">
+          <h3>Stand &amp; climate</h3>
+          <div class="ctl">
+            <label>EO pressure — canopy affected <span class="val" id="pctV">28 %</span></label>
+            <input type="range" id="pct" min="0" max="60" step="1" value="28" />
+          </div>
+          <div class="ctl">
+            <label>Spruce fraction <span class="val" id="sfV">80 %</span></label>
+            <input type="range" id="sf" min="0" max="100" step="5" value="80" />
+          </div>
+          <div class="ctl">
+            <label>Mean stand age <span class="val" id="ageV">70 yr</span></label>
+            <input type="range" id="age" min="10" max="120" step="5" value="70" />
+          </div>
+          <div class="ctl">
+            <label>Drought stress (VPD) <span class="val" id="vpdV">0.40</span></label>
+            <input type="range" id="vpd" min="0" max="100" step="5" value="40" />
+          </div>
+          <div class="ctl">
+            <label class="checkrow"><input type="checkbox" id="wt" /> Recent windthrow (breeding substrate → 3× risk)</label>
+          </div>
+          <div class="ctl">
+            <label>Crediting period <span class="val" id="yrsV">40 yr</span></label>
+            <input type="range" id="yrs" min="20" max="100" step="5" value="40" />
+          </div>
+          <p class="note">Composite risk follows the weighting in <code>bark_beetle_eo.py</code> (50% EO, 50% stand factors). 2,000 Monte-Carlo project simulations.</p>
+        </aside>
+        <main>
+          <div class="viz"><div id="buffer" class="plot" style="height:400px"></div></div>
+          <div class="viz" style="margin-top:16px"><div id="dist" class="plot" style="height:300px"></div></div>
+        </main>
+      </div>
+    </div></div>
+
+    <div class="method"><details>
+      <summary>How this works — data &amp; method</summary>
+      <div class="body">
+        <p><strong>Detection (real).</strong> My <code>bark_beetle_eo.py</code> module computes CIre, NDRE, NBR and NDVI from cloud-masked Sentinel-2 L2A, forms z-scores against a seasonal baseline, and classifies each spruce-canopy pixel into green / yellow / grey-dead attack stages (Bárta et al. 2021, 2022). Run over the Harz (2018 baseline → 2022 detection), it finds <strong>~28% of the spruce canopy bark-beetle-affected, ~8% already grey-dead</strong> across ~22,000 ha. The time series shows the affected cohort's chlorophyll index collapsing from 2019 while healthy stands hold steady — the reversal, seen from orbit.</p>
+        <p><strong>Composite risk.</strong> The EO anomaly (mean CIre z-score, % affected) is combined 50/50 with stand-level risk factors — spruce fraction, an age premium (>60 yr stands 1.5× more susceptible), a 3× post-windthrow multiplier for breeding substrate, and additive drought (VPD) stress — following Hlásny et al. (2021) and Seidl et al. (2016).</p>
+        <p><strong>Buffer sizing (Monte-Carlo).</strong> Composite risk sets an annual disturbance hazard; each simulated year a reversal may occur, removing a random 30–90% of standing stock, compounding on what remains. Over 2,000 simulated projects we take the distribution of cumulative reversal across the crediting period. The <strong>recommended buffer pool</strong> is the 95th-percentile cumulative loss — the withholding needed so that 95% of futures are covered — the quantitative backbone of a non-permanence risk assessment (cf. Verra AFOLU Non-Permanence Risk Tool).</p>
+        <p class="muted">Pipeline: <code>pipeline/build_bark_beetle.py</code>; detection code <code>utils/bark_beetle_eo.py</code> (ex_ante_europe repo).</p>
+      </div>
+    </details></div>
+
+  </div></div>
+
+  <footer class="footer"><div class="container">
+    <span>© <span id="yr"></span> Matthew Ashpole</span><span class="muted">Real Sentinel-2 detection · Monte-Carlo buffer model</span>
+  </div></footer>
+
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/data/bark_beetle.js"></script>
+  <script src="../assets/js/permanence.js"></script>
+  <script>document.getElementById('yr').textContent = new Date().getFullYear();</script>
+</body>
+</html>
