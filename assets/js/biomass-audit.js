@@ -89,8 +89,8 @@
 
   setCompare();
 
-  // ---- load stats + samples ----
-  fetch('../assets/data/biomass_audit.json').then(r => r.json()).then(d => {
+  // ---- load stats + samples (embedded as a JS global so it works under file:// too) ----
+  function renderData(d) {
     const a = d.agreement, cr = d.crediting, p = d.products;
 
     const stats = [
@@ -135,8 +135,12 @@
       xaxis: { gridcolor: COLORS.grid },
       legend: { orientation: 'h', y: 1.15, font: { size: 12 } },
     }), CONFIG);
-  }).catch(err => {
-    document.getElementById('stats').innerHTML = '<div class="stat"><div class="k">Data</div><div class="v small">unavailable</div><div class="muted" style="font-size:11px">serve over http</div></div>';
-    console.error(err);
-  });
+  }
+
+  if (window.BIOMASS_AUDIT) {
+    try { renderData(window.BIOMASS_AUDIT); }
+    catch (err) { console.error(err); }
+  } else {
+    document.getElementById('stats').innerHTML = '<div class="stat"><div class="k">Data</div><div class="v small">unavailable</div><div class="muted" style="font-size:11px">biomass_audit.js not loaded</div></div>';
+  }
 })();

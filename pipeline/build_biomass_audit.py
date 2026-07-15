@@ -152,7 +152,11 @@ def main():
 
     with open(os.path.join(DATA_DIR, "biomass_audit.json"), "w") as f:
         json.dump(stats, f, indent=1)
-    print("Wrote biomass_audit.json")
+    # also emit a JS-global version so the demo works when opened directly (file://),
+    # where fetch() of a local file is blocked by the browser.
+    with open(os.path.join(DATA_DIR, "biomass_audit.js"), "w") as f:
+        f.write("window.BIOMASS_AUDIT = " + json.dumps(stats) + ";\n")
+    print("Wrote biomass_audit.json + biomass_audit.js")
     print(json.dumps(stats["agreement"], indent=1))
     print(json.dumps(stats["crediting"], indent=1))
 
