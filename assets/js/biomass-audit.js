@@ -11,30 +11,77 @@
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
     attribution: 'Tiles © Esri', maxZoom: 16 }).addTo(map);
 
-  let opacity = 0.85;
+  let opacity = 0.9;
   const spawn = L.imageOverlay('../assets/img/agb_spawn.png', BOUNDS, { opacity, interactive: false });
   const gedi = L.imageOverlay('../assets/img/agb_gedi.png', BOUNDS, { opacity, interactive: false });
   const diff = L.imageOverlay('../assets/img/agb_diff.png', BOUNDS, { opacity, interactive: false });
   L.rectangle(BOUNDS, { color: '#fbbf24', weight: 2, fill: false, dashArray: '6 5' }).addTo(map);
 
-  let sbs = null, mode = 'compare';
+  // ---- custom swipe divider ----
+  const container = map.getContainer();
+  let frac = 0.5;      // divider position as fraction of map width
+  let mode = 'compare';
+
+  const divider = document.createElement('div');
+  divider.className = 'swipe-divider';
+  divider.innerHTML = '<div class="line"></div><div class="grip">⇆</div>';
+  const tagL = document.createElement('div'); tagL.className = 'swipe-tag'; tagL.style.left = '10px'; tagL.textContent = 'Spawn 2010';
+  const tagR = document.createElement('div'); tagR.className = 'swipe-tag'; tagR.style.right = '10px'; tagR.textContent = 'GEDI L4B';
+  container.appendChild(divider); container.appendChild(tagL); container.appendChild(tagR);
+
+  function updateSwipe() {
+    if (mode !== 'compare') return;
+    const w = container.clientWidth;
+    const x = frac * w;
+    divider.style.left = x + 'px';
+    // clip the GEDI overlay (on top) so it only shows to the RIGHT of the divider,
+    // revealing Spawn (underneath) on the left. clip-path is relative to the img box.
+    const gImg = gedi.getElement();
+    if (gImg) {
+      const cRect = container.getBoundingClientRect();
+      const gRect = gImg.getBoundingClientRect();
+      let f = (cRect.left + x - gRect.left) / gRect.width;
+      f = Math.max(0, Math.min(1, f));
+      gImg.style.clipPath = `inset(0 0 0 ${f * 100}%)`;
+      gImg.style.webkitClipPath = `inset(0 0 0 ${f * 100}%)`;
+    }
+  }
+
+  // dragging
+  let dragging = false;
+  function setFracFromEvent(e) {
+    const cRect = container.getBoundingClientRect();
+    const cx = (e.touches ? e.touches[0].clientX : e.clientX);
+    frac = Math.max(0, Math.min(1, (cx - cRect.left) / cRect.width));
+    updateSwipe();
+  }
+  divider.querySelector('.grip').addEventListener('pointerdown', e => {
+    e.preventDefault(); dragging = true; map.dragging.disable();
+  });
+  window.addEventListener('pointermove', e => { if (dragging) setFracFromEvent(e); });
+  window.addEventListener('pointerup', () => { if (dragging) { dragging = false; map.dragging.enable(); } });
+  map.on('move zoom zoomend moveend resize load', updateSwipe);
+  gedi.on('load', updateSwipe);
+
   function setCompare() {
+    mode = 'compare';
     map.removeLayer(diff);
     spawn.addTo(map); gedi.addTo(map);
-    if (!sbs) sbs = L.control.sideBySide(spawn, gedi).addTo(map);
-    else { sbs.setLeftLayers(spawn); sbs.setRightLayers(gedi); }
+    divider.style.display = ''; tagL.style.display = ''; tagR.style.display = '';
     document.getElementById('legend-agb').style.display = '';
     document.getElementById('legend-diff').style.display = 'none';
+    setTimeout(updateSwipe, 30);
   }
   function setDiff() {
-    if (sbs) { map.removeControl(sbs); sbs = null; }
+    mode = 'diff';
     map.removeLayer(spawn); map.removeLayer(gedi);
     diff.addTo(map);
+    divider.style.display = 'none'; tagL.style.display = 'none'; tagR.style.display = 'none';
     document.getElementById('legend-agb').style.display = 'none';
     document.getElementById('legend-diff').style.display = '';
   }
 
-  PF.bindSeg('view', v => { mode = v; v === 'compare' ? setCompare() : setDiff(); });
+  PF.bindSeg('view', v => { v === 'compare' ? setCompare() : setDiff(); });
   PF.bindRange('op', 'opV', () => {
     opacity = +document.getElementById('op').value / 100;
     [spawn, gedi, diff].forEach(l => l.setOpacity(opacity));
@@ -68,7 +115,7 @@
     });
     const mx = Math.max(...d.samples.map(s => Math.max(s.s, s.g))) * 1.05;
     traces.push({ x: [0, mx], y: [0, mx], mode: 'lines', name: '1:1', line: { color: '#e8f0ea', width: 1.5, dash: 'dash' }, hoverinfo: 'skip' });
-    Plotly.react('scatter', traces, plotLayout({
+    Plotly.newPlot('scatter', traces, plotLayout({
       margin: { l: 55, r: 15, t: 34, b: 46 },
       title: { text: `Per-pixel agreement — R² = ${a.r2} (points scatter far off the 1:1 line)`, font: { size: 13 }, x: 0.01 },
       xaxis: { title: 'Spawn 2010 AGB (Mg/ha)', gridcolor: COLORS.grid, range: [0, mx] },
@@ -78,7 +125,7 @@
 
     // grouped bars: mean AGB by product per land-cover class
     const bc = d.by_class.filter(c => c.n >= 15);
-    Plotly.react('bars', [
+    Plotly.newPlot('bars', [
       { x: bc.map(c => c.label), y: bc.map(c => c.spawn_mean), type: 'bar', name: 'Spawn 2010', marker: { color: '#41ab5d' } },
       { x: bc.map(c => c.label), y: bc.map(c => c.gedi_mean), type: 'bar', name: 'GEDI L4B', marker: { color: '#38bdf8' } },
     ], plotLayout({

@@ -139,6 +139,12 @@ h1, h2, h3 { line-height: 1.2; font-weight: 700; letter-spacing: -0.02em; }
 .footer .container { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
 
 .badge { display:inline-block; font-size:11px; font-family:var(--mono); padding:2px 8px; border-radius:6px; background:rgba(56,189,248,.1); color:var(--accent-2); border:1px solid rgba(56,189,248,.25); }
+/* swipe comparison divider */
+.swipe-divider { position:absolute; top:0; bottom:0; width:0; z-index:450; pointer-events:none; }
+.swipe-divider .line { position:absolute; top:0; bottom:0; left:-1px; width:2px; background:rgba(255,255,255,.9); box-shadow:0 0 6px rgba(0,0,0,.6); }
+.swipe-divider .grip { position:absolute; top:50%; left:-18px; width:36px; height:36px; margin-top:-18px; border-radius:50%; background:#fff; color:#04110a; display:grid; place-items:center; font-size:15px; font-weight:700; cursor:ew-resize; pointer-events:auto; box-shadow:0 2px 8px rgba(0,0,0,.5); }
+.swipe-tag { position:absolute; top:10px; z-index:450; font-size:12px; font-weight:600; color:#fff; background:rgba(4,17,10,.7); padding:4px 9px; border-radius:6px; pointer-events:none; }
+
 .legend { display:flex; flex-wrap:wrap; gap:14px; font-size:13px; margin-top:12px; }
 .legend span { display:flex; align-items:center; gap:6px; }
 .legend i { width:14px; height:14px; border-radius:3px; display:inline-block; }
