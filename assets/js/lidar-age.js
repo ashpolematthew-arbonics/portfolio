@@ -1,121 +1,155 @@
-// Tree age from LiDAR — synthetic CHM, local-maxima crown detection, height-age inversion
+// ALS tree age -> growth database — real Estonian ALS crowns, 1 km tile.
 (function () {
-  const { plotLayout, CONFIG, COLORS, fmt, mulberry32, randn, percentile } = PF;
+  const { plotLayout, CONFIG, COLORS, fmt } = PF;
+  const D = window.ALS_INVENTORY;
+  if (!D) { document.getElementById('stats').innerHTML = '<div class="stat"><div class="k">Data</div><div class="v small">not loaded</div></div>'; return; }
 
-  const SPECIES = {
-    pine:   { k: 0.030, p: 1.4 },
-    spruce: { k: 0.035, p: 1.5 },
-    birch:  { k: 0.050, p: 1.3 },
-  };
-  const BASE = 50;             // base age for site index
-  const N = 64;                // grid size
-  const state = { species: 'pine', si: 24, thr: 5, showCrowns: true };
-
-  // --- Build synthetic CHM once (heights are "measured", independent of SI) ---
-  const rng = mulberry32(7);
-  const trees = [];
-  const nTrees = 95;
-  for (let i = 0; i < nTrees; i++) {
-    const h = Math.max(2.5, 19 + 4.2 * randn(rng));   // mean ~19 m, even-aged stand
-    trees.push({ x: rng() * (N - 6) + 3, y: rng() * (N - 6) + 3, h, r: 1.4 + h * 0.07 });
+  const SP_COLOR = { pine: '#4ade80', spruce: '#38bdf8', birch: '#fbbf24', broadleaf: '#fb923c', conifer: '#a3e635', other: '#94a3b8' };
+  const SP_LABEL = { pine: 'Pine', spruce: 'Spruce', birch: 'Birch', broadleaf: 'Broadleaf', conifer: 'Conifer', other: 'Other' };
+  // age colour ramp (young -> old)
+  function ageColor(a) {
+    const t = Math.max(0, Math.min(1, a / 100));
+    const stops = [[74, 222, 128], [163, 230, 53], [251, 191, 36], [248, 113, 113], [153, 27, 27]];
+    const x = t * (stops.length - 1), i = Math.floor(x), f = x - i;
+    const c0 = stops[i], c1 = stops[Math.min(i + 1, stops.length - 1)];
+    return `rgb(${c0.map((v, k) => Math.round(v + (c1[k] - v) * f)).join(',')})`;
   }
-  // rasterise: each cell = max over tree Gaussian bumps + ground noise
-  const CHM = [];
-  for (let yy = 0; yy < N; yy++) {
-    const row = [];
-    for (let xx = 0; xx < N; xx++) {
-      let v = 0.4 * Math.abs(randn(rng));   // understorey / noise
-      for (const t of trees) {
-        const d2 = (xx - t.x) ** 2 + (yy - t.y) ** 2;
-        const bump = t.h * Math.exp(-d2 / (2 * t.r * t.r));
-        if (bump > v) v = bump;
-      }
-      row.push(v);
+
+  const state = { corr: 'on', colour: 'species' };
+  const ageOf = c => (state.corr === 'on' ? c.ao : (c.ap != null ? c.ap : c.ao));
+
+  // ---- map ----
+  const b = D.bbox; // [minx,miny,maxx,maxy]
+  const BOUNDS = [[b[1], b[0]], [b[3], b[2]]];
+  const map = L.map('map', { preferCanvas: true, scrollWheelZoom: true }).fitBounds(BOUNDS);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles © Esri', maxZoom: 19 }).addTo(map);
+  L.rectangle(BOUNDS, { color: '#fbbf24', weight: 1.5, fill: false, dashArray: '5 4' }).addTo(map);
+
+  const pickEl = document.getElementById('pick');
+  const markers = D.crowns.map(c => {
+    const m = L.circleMarker([c.lat, c.lng], { radius: 3, stroke: false, fillOpacity: 0.85 });
+    m.on('click', () => {
+      pickEl.innerHTML = `<strong>${SP_LABEL[c.sp] || c.sp}</strong> · height ${c.h} m · ` +
+        `age (corrected) ${c.ao} yr <span class="muted">[${c.lo}–${c.hi} 95% CI]</span> · ` +
+        `raw ${c.ap != null ? c.ap + ' yr' : '—'} · NDVI ${c.nd != null ? c.nd : '—'}`;
+    });
+    m.__c = c;
+    return m.addTo(map);
+  });
+
+  function restyleMarkers() {
+    markers.forEach(m => {
+      const c = m.__c;
+      m.setStyle({ fillColor: state.colour === 'species' ? (SP_COLOR[c.sp] || SP_COLOR.other) : ageColor(ageOf(c)) });
+    });
+  }
+  function renderLegend() {
+    const el = document.getElementById('map-legend');
+    if (state.colour === 'species') {
+      const present = [...new Set(D.crowns.map(c => c.sp))];
+      el.innerHTML = present.map(s => `<span><i style="background:${SP_COLOR[s]}"></i>${SP_LABEL[s] || s}</span>`).join('');
+    } else {
+      el.innerHTML = `<span><i style="background:${ageColor(10)}"></i>young</span>
+        <span><i style="background:${ageColor(50)}"></i>~50 yr</span>
+        <span><i style="background:${ageColor(95)}"></i>old</span>`;
     }
-    CHM.push(row);
   }
 
-  // --- Crown detection: local maxima above threshold ---
-  function detectCrowns(thr) {
-    const crowns = [];
-    for (let yy = 1; yy < N - 1; yy++) {
-      for (let xx = 1; xx < N - 1; xx++) {
-        const v = CHM[yy][xx];
-        if (v < thr) continue;
-        let isMax = true;
-        for (let dy = -1; dy <= 1 && isMax; dy++)
-          for (let dx = -1; dx <= 1; dx++) {
-            if (dx === 0 && dy === 0) continue;
-            if (CHM[yy + dy][xx + dx] > v) { isMax = false; break; }
-          }
-        if (isMax) crowns.push({ x: xx, y: yy, h: v });
-      }
-    }
-    return crowns;
+  // ---- stat cards (respond to correction toggle) ----
+  const H = D.hist;
+  function sumBins(arr, i0, i1) { let s = 0; for (let i = i0; i <= i1; i++) s += arr[i]; return s; }
+  function stats() {
+    const arr = state.corr === 'on' ? H.post : H.pre;
+    const total = arr.reduce((a, x) => a + x, 0);
+    const s = state.corr === 'on' ? D.stats.post : D.stats.pre;
+    const reliable = sumBins(arr, 0, 5) / total * 100;    // <60 yr
+    const censored = sumBins(arr, 8, 10) / total * 100;   // >=80 yr
+    return { median: s.median, reliable, censored };
+  }
+  function renderStats() {
+    const s = stats();
+    const cards = [
+      ['Crowns in tile', fmt(D.n_full), 'detected & aged'],
+      ['Median age', s.median + ' yr', state.corr === 'on' ? 'crown-area corrected' : 'raw watershed'],
+      ['Reliable (<60 yr)', fmt(s.reliable, 0) + '%', 'within envelope'],
+      ['Censored ≥80 yr', fmt(s.censored, 0) + '%', 'right-censored floor'],
+    ];
+    document.getElementById('stats').innerHTML = cards.map(([k, v, sub]) =>
+      `<div class="stat"><div class="k">${k}</div><div class="v small">${v}</div><div class="muted" style="font-size:11px">${sub}</div></div>`).join('');
   }
 
-  // --- Height-age inversion ---
-  function ageFromHeight(h, sp, si) {
-    const { k, p } = SPECIES[sp];
-    const Hmax = si / Math.pow(1 - Math.exp(-k * BASE), p);   // anchor: H(BASE)=si
-    const ratio = Math.min(0.999, h / Hmax);
-    const age = -Math.log(1 - Math.pow(ratio, 1 / p)) / k;
-    return { age: Math.max(0, age), Hmax };
-  }
-
-  function render() {
-    const crowns = detectCrowns(state.thr);
-    const heights = crowns.map(c => c.h).sort((a, b) => a - b);
-    const topH = heights.length ? percentile(heights, 0.95) : 0;
-    const { age: standAge, Hmax } = ageFromHeight(topH, state.species, state.si);
-
-    // CHM heatmap
-    const data = [{
-      z: CHM, type: 'heatmap', colorscale: [
-        [0, '#0c1410'], [0.25, '#15402b'], [0.5, '#1f7a45'], [0.75, '#4ade80'], [1, '#eaffd0'],
-      ], colorbar: { title: 'm', thickness: 12, len: 0.8 }, hovertemplate: 'h=%{z:.1f} m<extra></extra>',
-    }];
-    if (state.showCrowns) {
-      data.push({
-        x: crowns.map(c => c.x), y: crowns.map(c => c.y), mode: 'markers', type: 'scatter',
-        marker: { symbol: 'circle-open', color: '#fff', size: 7, line: { width: 1.4 } },
-        name: 'crown', hovertemplate: 'crown %{customdata:.1f} m<extra></extra>',
-        customdata: crowns.map(c => c.h),
-      });
-    }
-    Plotly.react('chm', data, plotLayout({
-      margin: { l: 30, r: 10, t: 28, b: 30 }, showlegend: false,
-      title: { text: 'Canopy Height Model (1 ha)', font: { size: 14 }, x: 0.01 },
-      xaxis: { visible: false, scaleanchor: 'y' }, yaxis: { visible: false },
-    }), CONFIG);
-
-    // Height-age curve + detected crowns plotted at their inferred age
-    const { k, p } = SPECIES[state.species];
-    const ages = Array.from({ length: 81 }, (_, i) => i);
-    const curveH = ages.map(a => Hmax * Math.pow(1 - Math.exp(-k * a), p));
-    const ptAges = crowns.map(c => ageFromHeight(c.h, state.species, state.si).age);
-
-    Plotly.react('curve', [
-      { x: ages, y: curveH, mode: 'lines', name: 'site-index curve', line: { color: COLORS.accent2, width: 2.5 } },
-      { x: ptAges, y: crowns.map(c => c.h), mode: 'markers', name: 'detected crowns',
-        marker: { color: COLORS.accent, size: 6, opacity: 0.7 }, hovertemplate: '%{y:.1f} m @ ~%{x:.0f} yr<extra></extra>' },
-      { x: [standAge], y: [topH], mode: 'markers', name: 'stand (top height)',
-        marker: { color: COLORS.warn, size: 13, symbol: 'star' } },
+  // ---- histogram: active distribution solid, the other as ghost outline ----
+  function renderHist() {
+    const on = state.corr === 'on';
+    const activeName = on ? 'Corrected ×0.43' : 'Raw watershed';
+    const active = on ? H.post : H.pre;
+    const ghost = on ? H.pre : H.post;
+    const activeColor = on ? COLORS.accent : '#f87171';
+    Plotly.react('hist', [
+      { x: H.labels, y: ghost, type: 'bar', name: on ? 'Raw (uncorrected)' : 'Corrected',
+        marker: { color: 'rgba(255,255,255,0.06)', line: { color: 'rgba(255,255,255,0.35)', width: 1 } },
+        hovertemplate: '%{y} crowns<extra>%{x} yr</extra>' },
+      { x: H.labels, y: active, type: 'bar', name: activeName,
+        marker: { color: activeColor }, hovertemplate: '%{y} crowns<extra>%{x} yr</extra>' },
     ], plotLayout({
-      margin: { l: 55, r: 15, t: 10, b: 45 },
-      xaxis: { title: 'Age (yr)', range: [0, 80], gridcolor: COLORS.grid },
-      yaxis: { title: 'Height (m)', gridcolor: COLORS.grid },
+      barmode: 'overlay', margin: { l: 55, r: 15, t: 38, b: 70 },
+      title: { text: 'Age distribution — the correction drains the artefactual ≥80 yr tail', font: { size: 13 }, x: 0.01, y: 0.97, yanchor: 'top' },
+      xaxis: { title: 'Predicted age (yr)', gridcolor: COLORS.grid },
+      yaxis: { title: 'Crowns', gridcolor: COLORS.grid },
+      legend: { orientation: 'h', y: -0.28, x: 0.5, xanchor: 'center', font: { size: 12 } },
+      shapes: [{ type: 'rect', xref: 'paper', x0: 0, x1: 1, y0: 0, y1: 0, visible: false }],
     }), CONFIG);
-
-    document.getElementById('sN').textContent = crowns.length;
-    document.getElementById('sTop').textContent = fmt(topH, 1) + ' m';
-    document.getElementById('sAge').textContent = '~' + fmt(standAge, 0) + ' yr';
-    document.getElementById('sDens').textContent = fmt(crowns.length);   // 1 ha grid
   }
 
-  PF.bindSeg('species', v => { state.species = v; render(); });
-  PF.bindRange('si', 'siV', () => { state.si = +document.getElementById('si').value; render(); }, ' m');
-  PF.bindRange('thr', 'thrV', () => { state.thr = +document.getElementById('thr').value; render(); }, ' m');
-  document.getElementById('showCrowns').addEventListener('change', e => { state.showCrowns = e.target.checked; render(); });
-  render();
+  // ---- height vs age saturation + reliability bands ----
+  function renderSat() {
+    const bandColors = { reliable: 'rgba(74,222,128,0.07)', medium: 'rgba(251,191,36,0.09)', censored_mature: 'rgba(248,113,113,0.11)' };
+    const shapes = D.envelope.map(e => ({
+      type: 'rect', xref: 'x', yref: 'paper', x0: e.lo, x1: Math.min(e.hi, 110), y0: 0, y1: 1,
+      fillcolor: bandColors[e.tag], line: { width: 0 }, layer: 'below',
+    }));
+    const traces = [...new Set(D.hs.map(p => p.sp))].map(sp => {
+      const pts = D.hs.filter(p => p.sp === sp);
+      return { x: pts.map(p => p.a), y: pts.map(p => p.h), mode: 'markers', type: 'scatter',
+        name: SP_LABEL[sp] || sp, marker: { color: SP_COLOR[sp] || SP_COLOR.other, size: 5, opacity: 0.6 },
+        hovertemplate: 'age %{x} yr · %{y} m<extra></extra>' };
+    });
+    Plotly.react('sat', traces, plotLayout({
+      margin: { l: 55, r: 15, t: 38, b: 62 }, shapes,
+      title: { text: 'Height saturates with age → old ages are uncertain (bands = reliability envelope)', font: { size: 12.5 }, x: 0.01, y: 0.98, yanchor: 'top' },
+      xaxis: { title: 'Predicted age (yr)', gridcolor: COLORS.grid, range: [0, 110] },
+      yaxis: { title: 'ALS height (m)', gridcolor: COLORS.grid },
+      legend: { orientation: 'h', y: -0.25, x: 0.5, xanchor: 'center', font: { size: 11 } },
+      annotations: [
+        { x: 30, y: 1.0, yref: 'paper', text: 'reliable', showarrow: false, font: { size: 10, color: '#4ade80' } },
+        { x: 70, y: 1.0, yref: 'paper', text: 'medium', showarrow: false, font: { size: 10, color: '#fbbf24' } },
+        { x: 95, y: 1.0, yref: 'paper', text: 'censored', showarrow: false, font: { size: 10, color: '#f87171' } },
+      ],
+    }), CONFIG);
+  }
+
+  // ---- pipeline stage list ----
+  document.getElementById('stages').innerHTML = [
+    ['CHM', '0.5 m raster; heights >45 m dropped'],
+    ['Treetops', 'variable-window local maxima, ≥2 m'],
+    ['Crowns', 'marker-controlled watershed'],
+    ['NDVI filter', 'drop dead/non-veg (~10.6%)'],
+    ['Crown-area', '×0.43 median-anchored to TLS'],
+    ['Species', 'CLIP zero-shot on RGB ortho'],
+    ['Age', 'GBM on FORage + reliability envelope'],
+    ['SI₅₀ / DBH', 'anamorphic SI → inverse Näslund DBH'],
+    ['Growth', 'folds into Chapman–Richards curves'],
+  ].map(([k, v], i) => `<div style="display:flex;gap:8px;padding:3px 0;border-bottom:1px solid var(--border)">
+      <span class="mono" style="color:var(--accent);min-width:16px">${i + 1}</span>
+      <span><strong style="color:var(--text)">${k}</strong> — ${v}</span></div>`).join('');
+  document.getElementById('tileid').textContent = D.tile;
+
+  function renderAll() { renderStats(); renderHist(); restyleMarkers(); renderLegend(); }
+
+  PF.bindSeg('corr', v => { state.corr = v; renderAll(); });
+  PF.bindSeg('colour', v => { state.colour = v; restyleMarkers(); renderLegend(); });
+
+  renderSat();
+  renderAll();
 })();

@@ -3,10 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tree age from LiDAR — Matthew Ashpole</title>
+  <title>ALS tree age → growth database — Matthew Ashpole</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="../assets/css/style.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌲</text></svg>" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.plot.ly/plotly-2.32.0.min.js" charset="utf-8"></script>
 </head>
 <body>
@@ -16,60 +18,55 @@
   </div></nav>
 
   <header class="demo-head"><div class="container">
-    <div class="crumb"><a href="../index.html">Home</a> / Demos / Tree age from LiDAR</div>
-    <h1>🌲 Tree age estimation from LiDAR</h1>
-    <p>Drone LiDAR returns a dense 3-D point cloud; rasterise it and you get a <strong>canopy height model</strong> (CHM) — height above ground at every pixel. From structure alone we can detect individual tree crowns and, given a site-index curve, invert each crown's height into an estimated age. Adjust the detection threshold and site productivity and watch the stand-age estimate respond.</p>
+    <div class="crumb"><a href="../index.html">Home</a> / Demos / ALS tree age → growth database</div>
+    <h1>🌲 Tree age from LiDAR → growth database <span class="badge">real data</span></h1>
+    <p>Real individual-tree crowns detected from Estonia's national airborne laser scanning (ALS), aged with a model trained on terrestrial-LiDAR reference trees. This is one 1 km tile of a 1.2-million-tree national inventory. The headline: a single, subtle <strong>crown-area calibration</strong> decides whether this stand looks middle-aged or ancient — and that flows straight into the carbon curve. Toggle it and watch.</p>
   </div></header>
 
   <div class="demo-body"><div class="container">
+
+    <div class="stat-row" id="stats"></div>
+
     <div class="layout">
       <aside class="panel controls">
-        <h3>Inversion settings</h3>
-
+        <h3>Crown-area correction</h3>
         <div class="ctl">
-          <label>Species (height–age curve)</label>
-          <div class="seg" id="species">
-            <button data-val="pine" class="active">Pine</button>
-            <button data-val="spruce">Spruce</button>
-            <button data-val="birch">Birch</button>
+          <div class="seg" id="corr">
+            <button data-val="on" class="active">Corrected ×0.43</button>
+            <button data-val="off">Raw watershed</button>
+          </div>
+          <span class="muted" style="font-size:12px">The watershed over-allocates crown area (2.3× vs TLS). Uncorrected, the age model extrapolates into a false "mature" tail.</span>
+        </div>
+
+        <h3 style="margin-top:22px">Map colour</h3>
+        <div class="ctl">
+          <div class="seg" id="colour">
+            <button data-val="species" class="active">Species</button>
+            <button data-val="age">Age</button>
           </div>
         </div>
+        <div class="legend" id="map-legend"></div>
 
-        <div class="ctl">
-          <label>Site index (H at base age 50) <span class="val" id="siV">24 m</span></label>
-          <input type="range" id="si" min="12" max="34" step="1" value="24" />
-        </div>
-
-        <div class="ctl">
-          <label>Crown detection threshold <span class="val" id="thrV">5 m</span></label>
-          <input type="range" id="thr" min="2" max="15" step="1" value="5" />
-        </div>
-
-        <div class="ctl">
-          <label class="checkrow"><input type="checkbox" id="showCrowns" checked /> Overlay detected crowns</label>
-        </div>
-
-        <p class="note">CHM is a synthetic 64×64 raster (~1 ha). Crowns are real local-maxima detections on the surface; ages come from inverting a Chapman–Richards height–age model.</p>
+        <h3 style="margin-top:22px">Pipeline</h3>
+        <div id="stages" class="muted" style="font-size:12.5px"></div>
       </aside>
 
       <main>
-        <div class="stat-row">
-          <div class="stat"><div class="k">Crowns detected</div><div class="v" id="sN">—</div></div>
-          <div class="stat"><div class="k">Top height</div><div class="v small" id="sTop">—</div><div class="muted" style="font-size:11px">P95 of crowns</div></div>
-          <div class="stat"><div class="k">Est. stand age</div><div class="v small" id="sAge">—</div><div class="muted" style="font-size:11px">from top height</div></div>
-          <div class="stat"><div class="k">Stems / ha</div><div class="v small" id="sDens">—</div></div>
+        <div class="viz"><div id="map"></div>
+          <div id="pick" class="note" style="min-height:18px">Click a crown for its attributes.</div>
         </div>
-
-        <div class="viz"><div id="chm" class="plot" style="height:420px"></div></div>
-        <div class="viz" style="margin-top:16px"><div id="curve" class="plot" style="height:320px"></div></div>
+        <div class="viz" style="margin-top:16px"><div id="hist" class="plot" style="height:360px"></div></div>
+        <div class="viz" style="margin-top:16px"><div id="sat" class="plot" style="height:360px"></div></div>
 
         <div class="method"><details>
-          <summary>How this works — the method behind the demo</summary>
+          <summary>How this works — data &amp; method (from ALS_GROWTH_DB_METHODOLOGY.md)</summary>
           <div class="body">
-            <p>A <strong>CHM</strong> is the LiDAR digital surface model minus the bare-earth model. Individual trees appear as peaks; we detect crowns with a <strong>local-maximum filter</strong> — a pixel taller than all neighbours and above a height threshold (variable-window methods scale the window with height in production).</p>
-            <p>Stand age comes from inverting a site-index height–age curve. We model top height as Chapman–Richards <span class="mono eq">H = H<sub>max</sub>·(1−e<sup>−k·age</sup>)<sup>p</sup></span>, anchored so H equals the <strong>site index</strong> at base age 50. Inverting for age:</p>
-            <p class="mono eq">age = −ln(1 − (H / H<sub>max</sub>)<sup>1/p</sup>) / k</p>
-            <p>Because LiDAR fixes the height, a more productive site (higher SI) implies a <em>younger</em> stand at the same height — slide the site index and the age estimate drops accordingly.</p>
+            <p><strong>Real data.</strong> Estonia's Land Board distributes national ALS as 1 km tiles (EPSG:3301) with multispectral returns. This demo shows tile <span class="mono" id="tileid"></span> of a national run of <strong>1.2 million detected crowns</strong>, exported to a static file the browser reads directly.</p>
+            <p><strong>Detection.</strong> Point cloud → 0.5 m Canopy Height Model → variable-window local maxima (Popescu &amp; Wynne 2004) → marker-controlled watershed (Meyer &amp; Beucher 1990) for crown polygons. A per-return <strong>NDVI</strong> live/dead filter drops ~10.6% of geometric "crowns" that are roofs or standing dead wood.</p>
+            <p><strong>The crown-area correction.</strong> A watershed <em>partitions</em> the canopy, so its crown area exceeds the true crown projection that terrestrial LiDAR (TLS) measures — by a median factor of 2.3×. Since crown area is an age-model feature and the model extrapolates upward on big crowns, the raw inventory has an artefactual old tail. Rescaling area by <span class="mono">s = 0.43 ≈ 12.8/29.5</span> (median-anchored to the TLS reference) collapses it. In this tile that moves <strong>≥80 yr crowns from 44% to 10%</strong> and the median age from 57 to 36 yr — exactly the toggle above.</p>
+            <p><strong>Age &amp; honest uncertainty.</strong> Age comes from a gradient-boosted model trained on the FORage TLS dataset (height, crown diameter/area, species). Because height saturates with age (Eichhorn's rule), old ages are imprecise — so each estimate carries a <strong>validation-derived reliability envelope</strong> banded by predicted age (RMSE 6.6 yr at 0–20; 80 yr at ≥80), and ≥80 yr trees are treated as <strong>right-censored floors</strong>, not point ages. The lower panel shows height saturating and the reliability bands.</p>
+            <p><strong>Into the growth database.</strong> Species come from zero-shot CLIP on the RGB orthophoto; site index (SI₅₀) and Bonitet are derived, and a DBH is synthesised via the inverse Näslund height–DBH model so these height-only records fold (down-weighted, provenance-tagged) into the Chapman–Richards DBH–age growth curves that drive ex-ante carbon.</p>
+            <p class="muted">Pipeline export: <code>pipeline/build_als_inventory.py</code>; full methodology in the ex_ante_europe repo.</p>
           </div>
         </details></div>
       </main>
@@ -77,10 +74,11 @@
   </div></div>
 
   <footer class="footer"><div class="container">
-    <span>© <span id="yr"></span> Matthew Ashpole</span><span class="muted">CHM → crowns → age</span>
+    <span>© <span id="yr"></span> Matthew Ashpole</span><span class="muted">Real Estonian ALS · 1 tile of 1.2M crowns</span>
   </div></footer>
 
   <script src="../assets/js/common.js"></script>
+  <script src="../assets/data/als_inventory.js"></script>
   <script src="../assets/js/lidar-age.js"></script>
   <script>document.getElementById('yr').textContent = new Date().getFullYear();</script>
 </body>
