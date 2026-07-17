@@ -19,7 +19,7 @@
   <header class="demo-head"><div class="container">
     <div class="crumb"><a href="../index.html">Home</a> / Demos / Drone site eligibility</div>
     <h1>🛰️ Drone site eligibility assessment <span class="badge">real data</span></h1>
-    <p>A real <strong>UAV orthomosaic</strong> of a Sudano-Sahelian agroforestry site in Senegal (via OpenAerialMap, CC-BY). I classify the drone imagery into land cover from its visible bands, then screen it for afforestation eligibility — excluding existing tree canopy (the additionality / forest test), applying a canopy setback and a minimum block size. Drag the controls and the eligible area re-screens live over the real image.</p>
+    <p>Real <strong>UAV orthomosaics</strong> from OpenAerialMap (CC-BY). I classify each drone image into land cover from its visible bands, <strong>segment cultivated field parcels</strong> and exclude them (active cropland fails additionality and drives leakage), then screen the rest for afforestation eligibility — removing existing tree canopy, applying a canopy setback and a minimum block size. Switch between drone sites and drag the controls; the eligible area re-screens live over the real image.</p>
   </div></header>
 
   <div class="demo-body"><div class="container">
@@ -28,7 +28,13 @@
 
     <div class="layout">
       <aside class="panel controls">
-        <h3>Layer</h3>
+        <h3>Drone site</h3>
+        <div class="ctl">
+          <div class="seg" id="scene" style="flex-wrap:wrap"></div>
+          <span class="muted" style="font-size:12px" id="scenectx"></span>
+        </div>
+
+        <h3 style="margin-top:22px">Layer</h3>
         <div class="ctl">
           <div class="seg" id="mode">
             <button data-val="drone">Drone</button>
@@ -52,10 +58,11 @@
           <input type="range" id="min" min="0" max="20" step="1" value="3" />
           <span class="muted" style="font-size:11px">Drop fragmented slivers below an operational minimum.</span>
         </div>
+        <label class="checkrow"><input type="checkbox" id="fields" checked /> Exclude cultivated fields (segmented)</label>
         <label class="checkrow"><input type="checkbox" id="bare" checked /> Count bare / degraded soil as plantable</label>
 
         <div class="legend" id="legend"></div>
-        <p class="note">Applied automatically: existing tree canopy and water/drainage are never plantable (the 10-year forest test). Land cover is a visible-band classification of the real drone image.</p>
+        <p class="note">Applied automatically: existing tree canopy and water/drainage are never plantable (the 10-year forest test). Cultivated fields are detected by image segmentation. Land cover is a visible-band classification of the real drone image.</p>
       </aside>
 
       <main>
@@ -64,9 +71,10 @@
         <div class="method"><details>
           <summary>How this works — data &amp; method</summary>
           <div class="body">
-            <p><strong>Real drone data.</strong> The basemap is an actual UAV orthomosaic — <span id="scene" class="mono"></span> — hosted on <a href="https://openaerialmap.org" target="_blank" rel="noopener">OpenAerialMap</a> (<span id="lic"></span>, flown <span id="acq"></span>). The COG is read and warped to WGS-84 in a Python pipeline; the browser streams the full-resolution tiles directly.</p>
-            <p><strong>Classification.</strong> With only visible RGB bands (no near-infrared), land cover is derived from the Excess-Green index and local texture: tree canopy is vegetation that is both darker and rougher than the surrounding crop/grass matrix, giving <strong id="treepct"></strong> canopy cover across the <strong id="siteha"></strong> site — the rest is herbaceous cropland/fallow with small bare and water patches. It's an honest visible-band estimate, not a NIR/LiDAR product.</p>
-            <p><strong>Eligibility.</strong> Plantable land is open cover (herbaceous + optionally bare). A pixel is excluded if it already carries tree canopy (additionality / the 10-year forest test), sits within the <strong>canopy setback</strong> of existing trees (using a distance-to-canopy surface), or falls in a plantable block below the <strong>minimum size</strong> (a connected-components filter). Eligible area drives a first-order planting and ex-ante carbon estimate.</p>
+            <p><strong>Real drone data.</strong> The basemap is an actual UAV orthomosaic — <span id="scene-name" class="mono"></span> — hosted on <a href="https://openaerialmap.org" target="_blank" rel="noopener">OpenAerialMap</a> (<span id="lic"></span>, flown <span id="acq"></span>). Switch scenes to compare an agroforestry-cropland site (Senegal) with an arid rangeland site (Turkana, Kenya). Each COG is read and warped to WGS-84 in a Python pipeline; the browser streams the full-resolution tiles directly.</p>
+            <p><strong>Classification.</strong> With only visible RGB bands (no near-infrared), land cover is derived from the Excess-Green index and local texture: tree canopy is vegetation both darker and rougher than the surrounding crop/grass matrix (<strong id="treepct"></strong> of the <strong id="siteha"></strong> site here). It's an honest visible-band estimate, not a NIR/LiDAR product.</p>
+            <p><strong>Field segmentation.</strong> Active cropland is not eligible — planting it fails additionality and displaces farming (leakage). Cultivated parcels are found with <strong>Felzenszwalb segmentation</strong>, keeping segments that are large, internally homogeneous, block-shaped and vegetated (not bare desert, not woodland). Here <strong id="fieldpct"></strong> of the site is segmented as cropland and excluded — toggle it to see how much of the "eligible" area is actually in agricultural use.</p>
+            <p><strong>Eligibility.</strong> Plantable land is the open remainder (herbaceous + optionally bare degraded soil), minus existing canopy (the 10-year forest test), minus a <strong>canopy setback</strong> (distance-to-canopy surface), minus plantable blocks below a <strong>minimum size</strong> (connected-components filter). Eligible area drives a first-order planting and ex-ante carbon estimate.</p>
             <p class="muted">Pipeline: <code>pipeline/build_drone_eligibility.py</code>. Imagery © OpenAerialMap contributors, CC-BY 4.0.</p>
           </div>
         </details></div>

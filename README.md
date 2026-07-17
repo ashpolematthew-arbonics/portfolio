@@ -7,7 +7,7 @@ A zero-build static portfolio site with five live, browser-only interactive demo
 | **Biomass-map disagreement audit** ⭐ *real data* | Spawn 2010 vs GEDI L4B AGB over N. Ghana — agree on regional total, disagree ~48% pixel-wise; crediting implications | Earth Engine + Leaflet + Plotly |
 | **Tree age from LiDAR → growth DB** ⭐ *real data* | Real Estonian ALS crowns (1 tile of 1.2M); crown-area-correction toggle collapses a false "mature" tail; reliability envelope | Leaflet + Plotly |
 | **Permanence & bark-beetle risk** ⭐ *real data* | Real Sentinel-2 detection of the Harz outbreak (own EO pipeline) → Monte-Carlo buffer-pool sizing | Earth Engine + Leaflet + Plotly |
-| **Drone site eligibility** ⭐ *real data* | Real UAV orthomosaic (OpenAerialMap, Senegal) classified from RGB → live afforestation eligibility screening | rasterio + Leaflet |
+| **Drone site eligibility** ⭐ *real data* | Real UAV orthomosaics (OpenAerialMap; Senegal cropland & Turkana rangeland) — RGB classification + field segmentation → live eligibility screening | rasterio + scikit-image + Leaflet |
 | **Ex-ante carbon calculation** | Chapman–Richards growth → annual & cumulative tCO₂e with Monte-Carlo uncertainty | Plotly |
 | **Drone site eligibility** | Screening parcels against AND-ed afforestation eligibility rules | Leaflet |
 | **Tree age from LiDAR** | Synthetic CHM, local-maxima crown detection, height–age inversion | Plotly |
