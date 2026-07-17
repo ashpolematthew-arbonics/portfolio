@@ -18,61 +18,56 @@
 
   <header class="demo-head"><div class="container">
     <div class="crumb"><a href="../index.html">Home</a> / Demos / Drone site eligibility</div>
-    <h1>🛰️ Drone site eligibility assessment</h1>
-    <p>Not every hectare can host a carbon project. Within a single project boundary, eligibility is decided <strong>pixel by pixel</strong> against a stack of rules, then the passing pixels are dissolved into a clean vector eligibility layer. Toggle each rule and watch the raster re-classify in real time; switch to the vectorised view to see the eligible area as polygons — the form it takes when it enters a project's GIS.</p>
+    <h1>🛰️ Drone site eligibility assessment <span class="badge">real data</span></h1>
+    <p>A real <strong>UAV orthomosaic</strong> of a Sudano-Sahelian agroforestry site in Senegal (via OpenAerialMap, CC-BY). I classify the drone imagery into land cover from its visible bands, then screen it for afforestation eligibility — excluding existing tree canopy (the additionality / forest test), applying a canopy setback and a minimum block size. Drag the controls and the eligible area re-screens live over the real image.</p>
   </div></header>
 
   <div class="demo-body"><div class="container">
+
+    <div class="stat-row" id="stats"></div>
+
     <div class="layout">
       <aside class="panel controls">
-        <h3>Eligibility criteria</h3>
-        <label class="checkrow"><input type="checkbox" id="c_forest" checked /> Non-forest for ≥ 10 yrs <span class="muted" style="font-size:12px">(additionality)</span></label>
-        <label class="checkrow"><input type="checkbox" id="c_slope" checked /> Slope ≤ 30°</label>
-        <label class="checkrow"><input type="checkbox" id="c_peat" checked /> Not on peat / wetland</label>
-        <label class="checkrow"><input type="checkbox" id="c_protected" checked /> Outside protected areas</label>
-        <label class="checkrow"><input type="checkbox" id="c_landuse" checked /> Prior use: grazing / cropland</label>
-        <label class="checkrow"><input type="checkbox" id="c_minarea" checked /> Parcel ≥ 0.5 ha (min size)</label>
-
-        <h3 style="margin-top:24px">Display</h3>
+        <h3>Layer</h3>
         <div class="ctl">
-          <label>Layer</label>
-          <div class="seg" id="view">
-            <button data-val="raster" class="active">Raster pixels</button>
-            <button data-val="vector">Vectorised</button>
+          <div class="seg" id="mode">
+            <button data-val="drone">Drone</button>
+            <button data-val="class">Land cover</button>
+            <button data-val="elig" class="active">Eligibility</button>
           </div>
         </div>
         <div class="ctl">
-          <label>Basemap</label>
-          <div class="seg" id="basemap">
-            <button data-val="sat" class="active">Satellite</button>
-            <button data-val="osm">Map</button>
-          </div>
+          <label>Overlay opacity <span class="val" id="opV">75 %</span></label>
+          <input type="range" id="op" min="20" max="100" step="5" value="75" />
         </div>
 
-        <div class="legend">
-          <span><i style="background:#4ade80"></i> Eligible</span>
-          <span><i style="background:#f87171"></i> Excluded</span>
+        <h3 style="margin-top:22px">Eligibility rules</h3>
+        <div class="ctl">
+          <label>Canopy setback <span class="val" id="setV">10 m</span></label>
+          <input type="range" id="set" min="0" max="40" step="2" value="10" />
+          <span class="muted" style="font-size:11px">Exclude open land within this distance of existing tree canopy.</span>
         </div>
-        <p class="note">Click a pixel to see which rule(s) it failed. The landscape's slope, peat, land-use and forest-history layers are procedurally generated &amp; seeded — synthetic, not a real site.</p>
+        <div class="ctl">
+          <label>Minimum plantable block <span class="val" id="minV">0.3 ha</span></label>
+          <input type="range" id="min" min="0" max="20" step="1" value="3" />
+          <span class="muted" style="font-size:11px">Drop fragmented slivers below an operational minimum.</span>
+        </div>
+        <label class="checkrow"><input type="checkbox" id="bare" checked /> Count bare / degraded soil as plantable</label>
+
+        <div class="legend" id="legend"></div>
+        <p class="note">Applied automatically: existing tree canopy and water/drainage are never plantable (the 10-year forest test). Land cover is a visible-band classification of the real drone image.</p>
       </aside>
 
       <main>
-        <div class="stat-row">
-          <div class="stat"><div class="k">Eligible area</div><div class="v" id="sElig">—</div><div class="muted" style="font-size:11px">hectares</div></div>
-          <div class="stat"><div class="k">Eligible pixels</div><div class="v small" id="sCount">—</div><div class="muted" style="font-size:11px">of <span id="sTotalP">0</span></div></div>
-          <div class="stat"><div class="k">Pass rate</div><div class="v small" id="sRate">—</div><div class="muted" style="font-size:11px">by area</div></div>
-          <div class="stat"><div class="k">Est. credits</div><div class="v small" id="sCred">—</div><div class="muted" style="font-size:11px">tCO₂e / yr @ 8 t/ha</div></div>
-        </div>
-        <div class="viz"><div id="map"></div>
-          <div id="reason" class="note" style="min-height:18px">Click a pixel for details.</div>
-        </div>
+        <div class="viz"><div id="map"></div></div>
 
         <div class="method"><details>
-          <summary>How this works — the method behind the demo</summary>
+          <summary>How this works — data &amp; method</summary>
           <div class="body">
-            <p>Eligibility screening is a <strong>raster overlay</strong>. Inside the project boundary, every pixel is sampled from co-registered geospatial layers: a <strong>land-cover time series</strong> (Sentinel-2 / Dynamic World for the 10-year forest test), a <strong>DEM-derived slope</strong> raster, <strong>peat &amp; wetland</strong> maps, <strong>protected-area</strong> boundaries (WDPA), and a prior land-use classification — all modelled here as spatially-coherent synthetic fields.</p>
-            <p>A pixel is <strong>eligible</strong> only if it passes <em>every</em> enabled rule — a logical AND across the criteria rasters. Disabling a rule relaxes the screen, so the eligible area grows. Eligible area × a nominal 8 tCO₂e/ha/yr gives a first-order credit estimate.</p>
-            <p>The <strong>vectorised</strong> view dissolves contiguous eligible pixels and traces their boundary edges — the raster-to-vector step that turns a classification grid into the polygon eligibility layer a project actually files. In production this runs at 10 m Sentinel resolution (or finer from drone orthomosaics) across the whole boundary.</p>
+            <p><strong>Real drone data.</strong> The basemap is an actual UAV orthomosaic — <span id="scene" class="mono"></span> — hosted on <a href="https://openaerialmap.org" target="_blank" rel="noopener">OpenAerialMap</a> (<span id="lic"></span>, flown <span id="acq"></span>). The COG is read and warped to WGS-84 in a Python pipeline; the browser streams the full-resolution tiles directly.</p>
+            <p><strong>Classification.</strong> With only visible RGB bands (no near-infrared), land cover is derived from the Excess-Green index and local texture: tree canopy is vegetation that is both darker and rougher than the surrounding crop/grass matrix, giving <strong id="treepct"></strong> canopy cover across the <strong id="siteha"></strong> site — the rest is herbaceous cropland/fallow with small bare and water patches. It's an honest visible-band estimate, not a NIR/LiDAR product.</p>
+            <p><strong>Eligibility.</strong> Plantable land is open cover (herbaceous + optionally bare). A pixel is excluded if it already carries tree canopy (additionality / the 10-year forest test), sits within the <strong>canopy setback</strong> of existing trees (using a distance-to-canopy surface), or falls in a plantable block below the <strong>minimum size</strong> (a connected-components filter). Eligible area drives a first-order planting and ex-ante carbon estimate.</p>
+            <p class="muted">Pipeline: <code>pipeline/build_drone_eligibility.py</code>. Imagery © OpenAerialMap contributors, CC-BY 4.0.</p>
           </div>
         </details></div>
       </main>
@@ -80,10 +75,11 @@
   </div></div>
 
   <footer class="footer"><div class="container">
-    <span>© <span id="yr"></span> Matthew Ashpole</span><span class="muted">Synthetic parcels · real screening logic</span>
+    <span>© <span id="yr"></span> Matthew Ashpole</span><span class="muted">Real UAV orthomosaic · OpenAerialMap · Senegal</span>
   </div></footer>
 
   <script src="../assets/js/common.js"></script>
+  <script src="../assets/data/drone_eligibility.js"></script>
   <script src="../assets/js/site-eligibility.js"></script>
   <script>document.getElementById('yr').textContent = new Date().getFullYear();</script>
 </body>

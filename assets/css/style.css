@@ -144,6 +144,7 @@ h1, h2, h3 { line-height: 1.2; font-weight: 700; letter-spacing: -0.02em; }
 .swipe-divider .line { position:absolute; top:0; bottom:0; left:-1px; width:2px; background:rgba(255,255,255,.9); box-shadow:0 0 6px rgba(0,0,0,.6); }
 .swipe-divider .grip { position:absolute; top:50%; left:-18px; width:36px; height:36px; margin-top:-18px; border-radius:50%; background:#fff; color:#04110a; display:grid; place-items:center; font-size:15px; font-weight:700; cursor:ew-resize; pointer-events:auto; box-shadow:0 2px 8px rgba(0,0,0,.5); }
 .swipe-tag { position:absolute; top:10px; z-index:450; font-size:12px; font-weight:600; color:#fff; background:rgba(4,17,10,.7); padding:4px 9px; border-radius:6px; pointer-events:none; }
+.px-crisp { image-rendering: pixelated; image-rendering: crisp-edges; }
 
 .legend { display:flex; flex-wrap:wrap; gap:14px; font-size:13px; margin-top:12px; }
 .legend span { display:flex; align-items:center; gap:6px; }
