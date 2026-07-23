@@ -3,3 +3,7 @@ Thumbs.db
 *.log
 node_modules/
 .vscode/
+
+# raw drone captures (large inputs; exported ghana_* assets are served)
+assets/drone/
+__pycache__/

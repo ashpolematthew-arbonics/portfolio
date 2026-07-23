@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Multispectral drone analysis — Matthew Ashpole</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="../assets/css/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌲</text></svg>" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+  <nav class="nav"><div class="container">
+    <a class="brand" href="../index.html"><span class="logo">🌲</span> Matthew Ashpole</a>
+    <div class="nav-links"><a href="../index.html#demos">All demos</a><a href="../index.html#about">About</a></div>
+  </div></nav>
+
+  <header class="demo-head"><div class="container">
+    <div class="crumb"><a href="../index.html">Home</a> / Demos / Multispectral drone analysis</div>
+    <h1>🛰️ Multispectral drone land-cover &amp; crown analysis <span class="badge">real data</span></h1>
+    <p>My own <strong>DJI Mavic 3 Multispectral</strong> capture (green / red / red-edge / near-infrared + RGB) over degraded savanna near <strong>Bolgatanga, northern Ghana</strong> — Great Green Wall country. The four spectral bands are registered, turned into real <strong>NDVI &amp; NDRE</strong>, classified into woody vegetation vs open ground, and every major tree crown is delineated — then screened for afforestation suitability. Switch layers and drag the rules; it all runs in your browser.</p>
+  </div></header>
+
+  <div class="demo-body"><div class="container">
+    <div class="stat-row" id="stats"></div>
+
+    <div class="layout">
+      <aside class="panel controls">
+        <h3>Layer</h3>
+        <div class="ctl">
+          <div class="seg" id="layer" style="flex-wrap:wrap">
+            <button data-val="rgb" class="active">RGB</button>
+            <button data-val="ndvi">NDVI</button>
+            <button data-val="ndre">NDRE</button>
+            <button data-val="class">Land cover</button>
+            <button data-val="tillage">Tillage</button>
+            <button data-val="suit">Suitability</button>
+          </div>
+        </div>
+        <div class="ctl">
+          <label>Overlay opacity <span class="val" id="opV">85 %</span></label>
+          <input type="range" id="op" min="30" max="100" step="5" value="85" />
+        </div>
+        <label class="checkrow"><input type="checkbox" id="crowns" /> Show delineated tree crowns</label>
+
+        <h3 style="margin-top:22px">Afforestation suitability</h3>
+        <div class="ctl">
+          <label>Canopy setback <span class="val" id="setV">4 m</span></label>
+          <input type="range" id="set" min="0" max="20" step="1" value="4" />
+          <span class="muted" style="font-size:11px">Keep new planting this far from existing woody canopy.</span>
+        </div>
+        <div class="ctl">
+          <label>Minimum plantable block <span class="val" id="minV">0.02 ha</span></label>
+          <input type="range" id="min" min="0" max="20" step="1" value="2" />
+        </div>
+
+        <div class="legend" id="legend"></div>
+        <p class="note" id="pick">Existing woody canopy (trees + shrub) is excluded; open ground is the planting candidate.</p>
+      </aside>
+
+      <main>
+        <div class="viz"><div id="map" style="background:#0c1410"></div></div>
+
+        <div class="method"><details>
+          <summary>How this works — data &amp; method (with literature)</summary>
+          <div class="body">
+            <p><strong>Sensor.</strong> DJI Mavic 3M, ~5.7 cm ground sampling. The four multispectral lenses (G, R, RE, NIR) have parallax offsets, so each band is co-registered to red by high-pass <strong>phase cross-correlation</strong>, and the 20 MP RGB (wider FOV) is fitted to the MS grid with an <strong>ORB feature + RANSAC similarity</strong> transform.</p>
+            <p><strong>Indices.</strong> <span class="mono">NDVI = (NIR−R)/(NIR+R)</span> (Rouse 1974) and the red-edge <span class="mono">NDRE = (NIR−RE)/(NIR+RE)</span> (Gitelson &amp; Merzlyak 1994), which tracks canopy chlorophyll and helps separate woody canopy from dry herbaceous cover.</p>
+            <p><strong>Tree-crown delineation.</strong> Smoothed-NDVI <strong>local maxima</strong> with a height-scaled window (Popescu &amp; Wynne 2004) seed a <strong>marker-controlled watershed</strong> (Meyer &amp; Beucher 1990; Ke &amp; Quackenbush 2011); crowns are filtered by size, red-edge greenness and prominence to keep <span id="ncr"></span> major trees (mean crown ~<span id="cd"></span> m).</p>
+            <p><strong>Land cover.</strong> A robust three-class map — tree crown / shrub-woody / open ground — from the NDVI canopy surface plus the crown segmentation.</p>
+            <p><strong>Suitability.</strong> Existing woody canopy is excluded (additionality / the forest test); a <strong>canopy setback</strong> (distance-to-canopy surface) and a <strong>minimum block</strong> (connected components) refine the open ground into a plantable area, driving a first-order stem &amp; ex-ante estimate.</p>
+            <p><strong>Honest limitations.</strong> This is a single <em>dry-season</em> frame: active cropland and degraded bare soil are both spectrally bare, so they can't be reliably split here (a "tillage" texture layer flags likely-ploughed ground, but separating cultivation needs multi-season NDVI). The RGB has no radiometric calibration panel, so indices are relative. Flight altitude wasn't logged, so area is estimated at ~100 m AGL.</p>
+            <p class="muted">Pipeline: <code>pipeline/drone_ms_common.py</code> + <code>build_drone_multispectral.py</code>. Imagery © the author.</p>
+          </div>
+        </details></div>
+      </main>
+    </div>
+  </div></div>
+
+  <footer class="footer"><div class="container">
+    <span>© <span id="yr"></span> Matthew Ashpole</span><span class="muted">Own DJI Mavic 3M multispectral · N. Ghana</span>
+  </div></footer>
+
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/data/drone_ms.js"></script>
+  <script src="../assets/js/drone-multispectral.js"></script>
+  <script>document.getElementById('yr').textContent = new Date().getFullYear();</script>
+</body>
+</html>
