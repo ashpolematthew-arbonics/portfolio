@@ -16,9 +16,6 @@ from skimage.measure import ransac
 from skimage.exposure import equalize_adapthist
 from scipy.ndimage import shift as ndshift, gaussian_filter
 
-DRONE = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "assets", "drone"))
-BASE = "DJI_20250502123937_0001"
-CACHE = os.path.join(os.environ.get("TEMP", "/tmp"), "ghana_ms_aligned.npz")
 CROP = 130          # px border to drop (parallax + vignette)
 
 
@@ -27,14 +24,15 @@ def _hp(x):
     return x - gaussian_filter(x, 12)
 
 
-def load_aligned(force=False):
-    if os.path.exists(CACHE) and not force:
-        d = np.load(CACHE)
+def load_aligned(scene_dir, base, force=False):
+    cache = os.path.join(os.environ.get("TEMP", "/tmp"), f"msalign_{base}.npz")
+    if os.path.exists(cache) and not force:
+        d = np.load(cache)
         return {k: d[k] for k in d.files}, dict(gsd_cm=float(d["gsd_cm"]), lat=float(d["lat"]), lon=float(d["lon"]))
 
     bands = {}
     for b in ["G", "R", "RE", "NIR"]:
-        with rasterio.open(os.path.join(DRONE, f"{BASE}_MS_{b}.TIF")) as ds:
+        with rasterio.open(os.path.join(scene_dir, f"{base}_MS_{b}.TIF")) as ds:
             bands[b] = ds.read(1).astype(np.float64)
     H, W = bands["R"].shape
     cy, cx = H // 2, W // 2
@@ -50,7 +48,7 @@ def load_aligned(force=False):
     # transform from ORB feature matches + RANSAC.
     from PIL import Image
     Image.MAX_IMAGE_PIXELS = None
-    rgb = np.asarray(Image.open(os.path.join(DRONE, f"{BASE}_D.JPG"))).astype(np.float64)
+    rgb = np.asarray(Image.open(os.path.join(scene_dir, f"{base}_D.JPG")).convert("RGB")).astype(np.float64)
     rgb_s = resize(rgb, (H, W, 3), order=1, preserve_range=True, anti_aliasing=True)
     def _prep(x):
         x = (x - x.min()) / (np.ptp(x) + 1e-6)
@@ -70,14 +68,14 @@ def load_aligned(force=False):
     out["RGB"] = rgb_a[c, c, :]
 
     # geolocation + GSD (assume ~100 m AGL; M3M MS: 6.4 mm sensor width, 4.34 mm focal)
-    raw = open(os.path.join(DRONE, f"{BASE}_D.JPG"), "rb").read(200000).decode("latin1")
+    raw = open(os.path.join(scene_dir, f"{base}_D.JPG"), "rb").read(200000).decode("latin1")
     def xmp(k, d=None):
         m = re.search(k + r'="?(-?[0-9.]+)', raw); return float(m.group(1)) if m else d
     lat = xmp("GpsLatitude", 10.5823); lon = xmp("GpsLongitude", -0.7639)
     agl = xmp("RelativeAltitude", 100.0)
     gsd_cm = agl * 6.4 / (4.34 * W) * 100
 
-    np.savez_compressed(CACHE, gsd_cm=gsd_cm, lat=lat, lon=lon, **out)
+    np.savez_compressed(cache, gsd_cm=gsd_cm, lat=lat, lon=lon, **out)
     return out, dict(gsd_cm=gsd_cm, lat=lat, lon=lon)
 
 
@@ -91,9 +89,6 @@ def indices(A):
 
 
 if __name__ == "__main__":
-    A, meta = load_aligned(force="--force" in os.sys.argv)
-    print("aligned stack:", A["R"].shape, "| GSD", round(meta["gsd_cm"], 1), "cm |",
-          "lat/lon", round(meta["lat"], 5), round(meta["lon"], 5))
-    idx = indices(A)
-    for k, v in idx.items():
-        print(f"  {k}: p5={np.percentile(v,5):.2f} p50={np.percentile(v,50):.2f} p95={np.percentile(v,95):.2f}")
+    d = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "assets", "drone"))
+    A, meta = load_aligned(d, "DJI_20250502123937_0001", force="--force" in os.sys.argv)
+    print("aligned stack:", A["R"].shape, "| GSD", round(meta["gsd_cm"], 1), "cm")
