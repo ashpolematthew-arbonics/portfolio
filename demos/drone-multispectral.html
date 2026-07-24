@@ -29,7 +29,7 @@
       <aside class="panel controls">
         <h3>Drone scene</h3>
         <div class="ctl">
-          <div class="seg" id="scene" style="flex-wrap:wrap"></div>
+          <div class="seg grid2" id="scene"></div>
           <span class="muted" style="font-size:12px" id="scenectx"></span>
         </div>
 
@@ -51,14 +51,17 @@
         <label class="checkrow"><input type="checkbox" id="crowns" /> Show delineated tree crowns</label>
 
         <h3 style="margin-top:20px">Restoration planning</h3>
+        <p class="muted" style="font-size:12px;margin-top:-4px">Contiguous blocks, delineated as vector polygons.</p>
         <div class="ctl">
-          <label>Tillage sensitivity <span class="val" id="tillV">20</span></label>
-          <input type="range" id="till" min="8" max="40" step="1" value="20" />
-          <span class="muted" style="font-size:11px">Open ground above this tillage index → agroforestry (farmed); below → reforestation.</span>
+          <label>Minimum block size <span class="val" id="minV">0.05 ha</span></label>
+          <input type="range" id="min" min="1" max="30" step="1" value="5" />
+          <span class="muted" style="font-size:11px">Only show restoration units at least this large.</span>
         </div>
         <div class="ctl">
-          <label>Minimum reforestation block <span class="val" id="minV">0.03 ha</span></label>
-          <input type="range" id="min" min="0" max="20" step="1" value="3" />
+          <label class="checkrow"><input type="checkbox" id="t_agro" checked /> Agroforestry <span class="muted" style="font-size:11px">(in field plots)</span></label>
+          <label class="checkrow"><input type="checkbox" id="t_refor" checked /> Reforestation</label>
+          <label class="checkrow"><input type="checkbox" id="t_anr" checked /> Assisted regeneration</label>
+          <label class="checkrow"><input type="checkbox" id="t_canopy" /> Existing canopy</label>
         </div>
 
         <div class="legend" id="legend"></div>
@@ -75,13 +78,20 @@
             <p><strong>Indices.</strong> <span class="mono">NDVI</span> (Rouse 1974) and red-edge <span class="mono">NDRE</span> (Gitelson &amp; Merzlyak 1994). <strong>Tree crowns</strong>: smoothed-NDVI local maxima (Popescu &amp; Wynne 2004) + marker-controlled watershed (Ke &amp; Quackenbush 2011).</p>
             <p><strong>Matching land to intervention.</strong> Rather than a single "eligible" mask, each patch is matched to the restoration approach that fits its condition — the way NbS programmes actually plan:</p>
             <ul>
-              <li><strong>Agroforestry</strong> — open ground with a high <em>tillage</em> signature (cultivated). Trees are integrated <em>into</em> the farming system; cultivation is a positive, not an exclusion.</li>
-              <li><strong>Reforestation</strong> — bare, minimally-vegetated degraded ground away from cultivation. Direct tree planting.</li>
+              <li><strong>Agroforestry</strong> — open ground <em>inside a delineated field parcel</em> (a large, low-vegetation Felzenszwalb segment with definable borders). Trees are integrated into the farming system; cultivation is a positive, not an exclusion.</li>
+              <li><strong>Reforestation</strong> — bare, minimally-vegetated degraded ground <em>outside</em> field parcels. Direct tree planting.</li>
               <li><strong>Assisted Natural Regeneration (ANR)</strong> — shrub / woody regrowth with few mature trees. Protect and manage what is already returning.</li>
               <li><strong>Existing canopy</strong> — delineated mature crowns are conserved, not planted (the forest test).</li>
             </ul>
-            <p>The tillage layer is a gradient-orientation coherence index (ploughed furrows are unidirectional); the slider sets the agroforestry/reforestation split. Each intervention carries its own indicative sequestration rate for a first-order ex-ante estimate.</p>
-            <p><strong>Honest limitations.</strong> Single dry-season frames with no calibration panel: indices are relative, and cropland vs bare can't be split spectrally (hence the tillage-texture proxy). Altitude wasn't logged, so area is estimated at ~100 m AGL.</p>
+            <p><strong>Blocks, not pixels.</strong> The per-pixel intervention map is coarsened, morphologically cleaned and <strong>vectorised into contiguous polygons</strong>, so the output is a set of manageable restoration <em>units</em> rather than salt-and-pepper pixels — filter them by minimum block size. Each intervention carries an indicative sequestration rate for a first-order ex-ante estimate.</p>
+            <p><strong>Limitations — read before trusting any of this.</strong> This is <em>unsupervised</em> classification of a single, un-calibrated, dry-season UAV frame, and that is a genuinely hard, error-prone setting:</p>
+            <ul>
+              <li><strong>High resolution hurts as much as it helps.</strong> At ~6 cm, one tree is thousands of mixed, shadowed, sunlit pixels; spectral classes overlap heavily and unsupervised methods over-segment. Reported class fractions and crown counts can shift materially with threshold choices — they are indicative, not measured.</li>
+              <li><strong>No training data or calibration.</strong> No reflectance panel (indices are relative DN ratios), no field plots, no labels — so classes are inferred from geometry and spectra alone and cannot be accuracy-assessed here. A defensible product needs ground-truth points and a supervised or manually-audited classifier.</li>
+              <li><strong>Dry-season ambiguity.</strong> Ploughed cropland and degraded bare soil are both bare and near-identical spectrally; the field-parcel and tillage cues are proxies, not proof of active cultivation. Multi-season NDVI (crop phenology) is needed to confirm land use.</li>
+              <li><strong>Ecology is not in the pixels.</strong> Whether a patch should be reforested, farmed with trees or left to regenerate depends on tenure, species suitability, soil, hydrology, grazing and community priorities — knowledge that only local expertise and field inspection provide. This tool <em>narrows and structures</em> where to look; it does not replace a walk-through with the land users.</li>
+              <li>Frames are single nadir captures (no orthomosaic/PPK here), and altitude wasn't logged, so area is estimated at ~100 m AGL.</li>
+            </ul>
             <p class="muted">Pipeline: <code>pipeline/drone_ms_common.py</code> + <code>build_drone_multispectral.py</code>. Imagery © the author.</p>
           </div>
         </details></div>

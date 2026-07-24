@@ -21,9 +21,12 @@ import numpy as np
 from scipy import ndimage as ndi
 from scipy.ndimage import gaussian_filter, uniform_filter, distance_transform_edt
 from skimage.feature import peak_local_max
-from skimage.segmentation import watershed
+from skimage.segmentation import watershed, felzenszwalb
 from skimage.measure import regionprops
+from skimage.morphology import binary_closing, remove_small_objects, disk
 from skimage.transform import resize
+from rasterio import features as rfeatures
+from shapely.geometry import shape as shp_shape
 import matplotlib; matplotlib.use("Agg"); import matplotlib.cm as cm
 from PIL import Image
 
@@ -40,6 +43,11 @@ GX = 300
 
 NODATA, TREE, SHRUB, OPEN = 0, 1, 2, 3
 COL = {TREE: (26, 102, 46), SHRUB: (120, 190, 90), OPEN: (206, 178, 132)}
+# restoration interventions
+CANOPY, ANR, AGRO, REFOR = 1, 2, 3, 4
+IV_NAME = {CANOPY: "canopy", ANR: "anr", AGRO: "agro", REFOR: "refor"}
+POLY_W = 190          # coarse grid for block polygonisation (larger blocks)
+MIN_BLOCK_HA = 0.015  # smallest block kept in the export (client filters up)
 
 SCENES = [
     {"key": "mixed", "dir": ASSET_DRONE, "base": "DJI_20250502123937_0001",
@@ -94,6 +102,18 @@ def analyse(scene):
     cls[tree_mask] = TREE
     frac = {k: round(float((cls == k).mean() * 100), 1) for k in (TREE, SHRUB, OPEN)}
 
+    # agricultural-plot detection: Felzenszwalb segments that are large, open
+    # (low-veg) and parcel-shaped (definable borders). Agroforestry is only
+    # allowed inside these delineated plots.
+    seg = felzenszwalb((rgb - rgb.min()) / (np.ptp(rgb) + 1e-6), scale=200, sigma=1.0, min_size=1500)
+    labs = np.arange(seg.max() + 1)
+    sizes = ndi.sum(np.ones_like(seg, float), seg, labs)
+    ndvi_mean = ndi.mean(ndvi, seg, labs)
+    ext = {r.label: r.extent for r in regionprops(seg + 1)}
+    min_field = 0.05 * 1e4 / (gsd * gsd)   # >= 500 m^2 plots
+    field_lbl = [k for k in labs if sizes[k] >= min_field and ndvi_mean[k] < 0.25 and ext.get(k + 1, 0) >= 0.45]
+    field_mask = np.isin(seg, field_lbl)
+
     area_ha = H * W * gsd * gsd / 1e4
     stats = {
         "gsd_cm": round(meta["gsd_cm"], 1), "lat": round(meta["lat"], 5), "lon": round(meta["lon"], 5),
@@ -105,7 +125,7 @@ def analyse(scene):
         "ndvi_med": round(float(np.median(ndvi)), 2), "ndre_med": round(float(np.median(ndre)), 2),
     }
     return dict(meta=meta, gsd=gsd, ndvi=ndvi, ndre=ndre, rgb=rgb, cls=cls,
-                majors=majors, tillage=tillage, tree_mask=tree_mask, stats=stats)
+                majors=majors, tillage=tillage, tree_mask=tree_mask, field_mask=field_mask, stats=stats)
 
 
 def _resize_to(arr, W):
@@ -136,21 +156,43 @@ def export_scene(R, scene):
     crowns = [{"x": round(p.centroid[1] * sx, 1), "y": round(p.centroid[0] * sx, 1),
                "r": round(np.sqrt(p.area / np.pi) * sx, 1)} for p in R["majors"]]
 
-    # grids: class, tillage (0-100), distance-to-canopy (m)
-    woody = np.isin(R["cls"], [TREE, SHRUB])
-    distc = distance_transform_edt(~woody) * R["gsd"]
-    GY = int(GX * H0 / W0)
-    ys = np.linspace(0, H0, GY + 1).astype(int); xs = np.linspace(0, W0, GX + 1).astype(int)
-    grid = np.zeros((GY, GX), np.uint8); till = np.zeros((GY, GX), np.uint8); dg = np.zeros((GY, GX), np.uint8)
-    for r in range(GY):
-        for c in range(GX):
-            grid[r, c] = np.bincount(R["cls"][ys[r]:ys[r+1], xs[c]:xs[c+1]].ravel(), minlength=4).argmax()
-            till[r, c] = int(np.clip(R["tillage"][ys[r]:ys[r+1], xs[c]:xs[c+1]].mean() * 100, 0, 100))
-            dg[r, c] = int(min(40, distc[ys[r]:ys[r+1], xs[c]:xs[c+1]].mean()))
-    cell_ha = R["stats"]["area_ha"] / (GX * GY)
+    # --- intervention raster: canopy / ANR / agroforestry / reforestation ---
+    interv = np.zeros((H0, W0), np.uint8)
+    interv[R["cls"] == OPEN] = REFOR
+    interv[(R["cls"] == OPEN) & R["field_mask"]] = AGRO       # agroforestry only in plots
+    interv[R["cls"] == SHRUB] = ANR
+    interv[R["cls"] == TREE] = CANOPY
+
+    # coarsen to a block grid (majority) so units are larger, then polygonise
+    Wc = POLY_W; Hc = int(Wc * H0 / W0)
+    ys = np.linspace(0, H0, Hc + 1).astype(int); xs = np.linspace(0, W0, Wc + 1).astype(int)
+    coarse = np.zeros((Hc, Wc), np.uint8)
+    for r in range(Hc):
+        for c in range(Wc):
+            coarse[r, c] = np.bincount(interv[ys[r]:ys[r+1], xs[c]:xs[c+1]].ravel(), minlength=5).argmax()
+    cell_ha = R["stats"]["area_ha"] / (Wc * Hc)
+    min_px = max(3, int(MIN_BLOCK_HA / cell_ha))
+
+    polys, areas = [], {n: 0.0 for n in IV_NAME.values()}
+    for t, name in IV_NAME.items():
+        m = coarse == t
+        m = binary_closing(m, disk(2))
+        m = remove_small_objects(m, min_px)
+        if not m.any():
+            continue
+        for geom, _ in rfeatures.shapes(m.astype(np.uint8), mask=m, connectivity=4):
+            poly = shp_shape(geom)
+            if poly.area < min_px:
+                continue
+            poly = poly.simplify(1.3)
+            xr, yr = poly.exterior.coords.xy
+            ring = [[round(x / Wc, 4), round(y / Hc, 4)] for x, y in zip(xr, yr)]
+            a = round(poly.area * cell_ha, 4)
+            areas[name] += a
+            polys.append({"t": name, "a": a, "r": ring})
+    stats = dict(R["stats"]); stats["iv_ha"] = {k: round(v, 3) for k, v in areas.items()}
     return {"key": key, "label": scene["label"], "ctx": scene["ctx"], "w": Wx, "h": Hx,
-            "stats": R["stats"], "crowns": crowns, "gx": GX, "gy": GY, "cell_ha": round(cell_ha, 6),
-            "grid": grid.flatten().tolist(), "till": till.flatten().tolist(), "dist": dg.flatten().tolist()}
+            "stats": stats, "crowns": crowns, "polys": polys}
 
 
 def main():
